@@ -1,99 +1,79 @@
-# Theme & Wallpaper Control Center for Antigravity
+# Antigravity Theme & Wallpaper Control Center
 
-[![Antigravity Plugin](https://img.shields.io/badge/Antigravity-Plugin-blue.svg)](https://github.com/Wandering233/antigravity-theme-control-center)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Visual customization sidecar and control panel for Google Antigravity. Supports floating card layouts, liquid and frosted glassmorphism, and dynamic video or static image background wallpapers.
 
-Visual Control Center for **Google Antigravity**: toggle floating card layouts, tune liquid/frosted glassmorphism parameters, and customize background wallpapers with static pictures or dynamic video loops.
+## Features
 
----
+- **Floating Card Layout**: Detaches panels into floating surface cards with customizable gutters and border radius.
+- **Glassmorphism Materials**:
+  - `frosted`: Gaussian blur backdrop with configurable opacity and blur radius.
+  - `liquid`: Light refraction, wave specular highlights, and soft inner glow.
+- **Custom Wallpapers**:
+  - Supports image URLs and local media files.
+  - Built-in HTTP media streaming (`/api/media`) for video backgrounds (MP4, WebM).
+  - Configurable brightness, blur, and dim overlay.
+- **CDP Injection Architecture**:
+  - Connects to Antigravity's host window over the Chrome DevTools Protocol.
+  - Zero binary or file patching; survives application updates.
+  - Automatic reconnection and style re-injection on window reload (`Ctrl+R`).
+  - Restores default UI styles on shutdown.
+- **Auxiliary Pane UI**: Sidecar control dashboard adapted for light and dark modes.
 
-## ✨ Features
+## Installation
 
-- 🎴 **Floating Card Layout (悬浮卡片模式)**: Transforms the standard IDE interface into modern floating surface cards with customizable margins, gutters, and border radius.
-- 🧊 **Dual Material Glassmorphism (双材质毛玻璃)**:
-  - **Frosted (经典磨砂)**: Clean, smooth Gaussian blur backdrop with subtle translucent tinting.
-  - **Liquid (流体光泽)**: Advanced dynamic light refraction, subtle wave specular highlights, and soft inner glow.
-- 🖼️ **Rich Wallpapers (静态与动态壁纸)**:
-  - Supports online image URLs and local media files.
-  - Built-in video streaming engine (`/api/media`) supporting high-definition MP4/WebM video wallpapers.
-  - Live adjustment of brightness, blur, and dim overlay.
-- ⚡ **CDP Zero-Patch Architecture (零侵入热注入)**:
-  - Connects directly to Antigravity's host window via the Chrome DevTools Protocol (CDP).
-  - **Zero file patching**: Does not tamper with internal app bundles or binary files; completely immune to software updates.
-  - **Self-healing**: Automatically re-injects and synchronizes styles if the window reloads (`Ctrl+R`).
-  - **Clean Shutdown**: Gracefully ejects injected CSS and restores the native UI upon plugin disable, uninstall, or exit.
-- 🎨 **Sidecar Control Panel**:
-  - Embedded Sidecar UI accessible directly from Antigravity's auxiliary panels.
-  - Follows Material Design 3 (MD3) guidelines with automatic Dark / Light mode adaptation.
+### Global
 
----
-
-## 🚀 Installation & Debugging (快速安装与调试)
-
-### 1. 全局安装 (Global Install)
-
-将仓库克隆至 Antigravity 全局插件目录：
+Clone into the Antigravity global plugins directory:
 
 ```bash
 git clone https://github.com/Wandering233/antigravity-theme-control-center.git ~/.gemini/config/plugins/theme-control-center
 ```
 
-重启 Antigravity 后，即可在侧边栏或自定义面板中打开 **Theme & Wallpaper Control Center**。
+Restart Antigravity to discover the plugin.
 
-### 2. 工作区隔离调试 (Workspace Sandbox Install)
+### Workspace Sandbox (Testing)
 
-若仅想在特定测试项目中调试本插件，避免污染全局配置：
+To test inside a specific repository without modifying global configurations:
 
 ```bash
-# 在你的任意测试项目根目录下执行
 mkdir -p .agents/plugins
 git clone https://github.com/Wandering233/antigravity-theme-control-center.git .agents/plugins/theme-control-center
 ```
 
-打开该项目时 Antigravity 会单独挂载此插件，改动即时生效。
+### Manifest Validation
 
-### 3. 插件规范校验 (CLI Validation)
-
-在终端运行官方 CLI 工具检查插件完整性：
+Validate plugin structure using the Antigravity CLI:
 
 ```bash
 agy plugin validate ~/.gemini/config/plugins/theme-control-center
 ```
 
----
+## Configuration
 
-## 🛠️ Project Structure
-
-```text
-theme-control-center/
-├── plugin.json         # Plugin manifest
-├── assets/
-│   └── logo.svg        # Vector plugin icon
-├── sidecars/
-│   └── control/
-│       ├── sidecar.json # Sidecar service declaration
-│       ├── server.mjs   # Node.js CDP engine & local media streaming server
-│       └── index.html   # Visual Control Center dashboard
-├── .gitignore
-└── README.md
-```
-
----
-
-## ⚙️ Configuration File
-
-插件配置自动保存在 `~/.gemini/config/custom-ui/theme-config.json`：
+Configuration is stored at `~/.gemini/config/custom-ui/theme-config.json`:
 
 ```json
 {
-  "injection": { "enabled": true },
+  "injection": {
+    "enabled": true
+  },
   "floating": {
     "enabled": true,
     "material": "liquid",
     "gutter": 10,
     "radius": 16,
-    "frosted": { "opacity": 0.65, "blur": 24 },
-    "liquid": { "opacity": 0.35, "refraction": 20, "wave": 2, "blur": 8, "specular": 0.75, "innerGlow": 0.25 }
+    "frosted": {
+      "opacity": 0.65,
+      "blur": 24
+    },
+    "liquid": {
+      "opacity": 0.35,
+      "refraction": 20,
+      "wave": 2,
+      "blur": 8,
+      "specular": 0.75,
+      "innerGlow": 0.25
+    }
   },
   "wallpaper": {
     "enabled": true,
@@ -107,8 +87,23 @@ theme-control-center/
 }
 ```
 
----
+## Directory Structure
 
-## 📄 License
+```text
+theme-control-center/
+├── plugin.json
+├── assets/
+│   └── logo.svg
+├── sidecars/
+│   └── control/
+│       ├── index.html
+│       ├── server.mjs
+│       └── sidecar.json
+├── .gitignore
+├── LICENSE
+└── README.md
+```
 
-[MIT License](LICENSE) © 2026 Wandering233
+## License
+
+MIT
