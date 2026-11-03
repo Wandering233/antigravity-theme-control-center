@@ -1,0 +1,20 @@
+{
+  "command": "node",
+  "args": [
+    "server.mjs"
+  ],
+  "restart_policy": "always",
+  "display_name": "Theme & Wallpaper Control Center",
+  "description": "Visual Control Center to tune floating glassmorphism layouts and dynamic/static wallpapers.",
+  "has_web_ui": true,
+  "ui_config": {
+    "display_name": "Theme & Wallpaper Control Center",
+    "views": [
+      {
+        "title": "Control Center",
+        "path": "/",
+        "entrypoint": "SIDECAR_UI_ENTRYPOINT_AUX_PANE"
+      }
+    ]
+  }
+}

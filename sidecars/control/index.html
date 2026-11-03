@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme & Wallpaper Control Center</title>
+  <style>
+    :root {
+      --bg: transparent;
+      --card-bg: rgba(255, 255, 255, 0.06);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --card-hover: rgba(255, 255, 255, 0.1);
+      --text: #f3f4f6;
+      --text-muted: #94a3b8;
+      --track-bg: rgba(255, 255, 255, 0.14);
+      
+      /* Material Design 3 (MD3) Default Tokens */
+      --md-sys-color-primary: #a3ccf5;
+      --md-sys-color-on-primary: #0f3357;
+      --md-sys-color-primary-container: #1b4d7e;
+      --md-sys-color-on-primary-container: #d1e6fa;
+      --md-sys-color-outline: rgba(255, 255, 255, 0.25);
+      
+      --accent: var(--md-sys-color-primary);
+      --accent-glow: rgba(163, 204, 245, 0.25);
+      --toggle-active: var(--md-sys-color-primary);
+      
+      --radius: 12px;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: transparent;
+        --card-bg: rgba(255, 255, 255, 0.25);
+        --card-border: rgba(255, 255, 255, 0.5);
+        --card-hover: rgba(255, 255, 255, 0.38);
+        --text: #0f172a;
+        --text-muted: #334155;
+        --track-bg: rgba(0, 0, 0, 0.08);
+        
+        --md-sys-color-primary: #006399;
+        --md-sys-color-on-primary: #ffffff;
+        --md-sys-color-primary-container: #cde5ff;
+        --md-sys-color-on-primary-container: #001d32;
+        --md-sys-color-outline: rgba(0, 0, 0, 0.2);
+        
+        --accent: var(--md-sys-color-primary);
+        --accent-glow: rgba(0, 99, 153, 0.2);
+        --toggle-active: var(--md-sys-color-primary);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      background: transparent !important;
+      background-color: transparent !important;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: transparent !important;
+      background-color: transparent !important;
+      color: var(--text);
+      padding: 16px;
+      line-height: 1.5;
+      font-size: 13px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 4px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-title h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .header-badge {
+      font-size: 10px;
+      background: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-on-primary-container);
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Hook Status Card */
+    .hook-card {
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--accent);
+      background: var(--card-bg);
+      padding: 12px 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+    .hook-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .hook-status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .hook-status-inactive {
+      background: rgba(245, 158, 11, 0.18);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .hook-status-active {
+      background: rgba(16, 185, 129, 0.18);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .hook-status-error {
+      background: rgba(239, 68, 68, 0.18);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .hook-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .hook-btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .btn-primary {
+      background: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
+      border: none;
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-secondary:hover {
+      background: var(--card-hover);
+      color: var(--text);
+    }
+    .btn-primary:disabled, .btn-secondary:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      filter: grayscale(0.5);
+      transform: none;
+      box-shadow: none;
+      pointer-events: none;
+    }
+
+    /* Switch */
+    .switch-label {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+    }
+    .switch-label input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider-toggle {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: var(--track-bg);
+      transition: .25s ease;
+      border-radius: 24px;
+    }
+    .slider-toggle:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .25s ease;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    input:checked + .slider-toggle {
+      background-color: var(--toggle-active);
+    }
+    input:checked + .slider-toggle:before {
+      transform: translateX(18px);
+    }
+
+    /* Control Groups */
+    .control-group {
+      margin-bottom: 14px;
+    }
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    .val-badge {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--md-sys-color-on-primary-container);
+      background: var(--md-sys-color-primary-container);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    /* Range slider custom track and thumb */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--track-bg);
+      outline: none;
+      display: block;
+      margin: 8px 0;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--track-bg);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      margin-top: -5px;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+      transition: transform 0.1s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* Segmented Control */
+    .segmented {
+      display: flex;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 3px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid var(--card-border);
+    }
+    .segmented-btn {
+      flex: 1;
+      text-align: center;
+      padding: 6px 4px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: transparent;
+      border: none;
+    }
+    .segmented-btn.active {
+      background: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-on-primary-container);
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Inputs */
+    .text-input-wrap {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .text-input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: var(--text);
+      font-size: 11px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .text-input:focus {
+      border-color: var(--accent);
+    }
+    .file-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .file-btn:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+    }
+
+    /* MD3 Color Extraction Banner */
+    .md3-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      font-size: 11px;
+    }
+    .md3-swatches {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .md3-circle {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .disabled-group {
+      opacity: 0.35;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">
+      <h1>控制中心</h1>
+      <span class="header-badge">Material Design 3</span>
+    </div>
+    <button class="btn-secondary" id="btn-reset">重置默认</button>
+  </div>
+
+  <!-- 动态检测钩子状态面板 -->
+  <div class="hook-card" id="hook-card">
+    <div class="hook-status-row">
+      <span style="font-weight: 600;">增强控制注入状态</span>
+      <span class="hook-status-badge hook-status-inactive" id="hook-badge">未注入 (官方原生模式)</span>
+    </div>
+    <div class="hook-desc" id="hook-desc">
+      当前处于安全模式。未加载悬浮卡片、毛玻璃透光与壁纸层。点击下方按钮通过安全检测后注入。
+    </div>
+    <div class="hook-btn-row">
+      <button class="btn-primary" id="btn-inject">注入以启用增强控制</button>
+      <button class="btn-secondary" id="btn-eject" style="display: none;">安全卸载 / 恢复官方原生</button>
+    </div>
+  </div>
+
+  <!-- MD3 动态取色信息卡片 -->
+  <div class="md3-banner" id="md3-banner">
+    <div>
+      <span style="font-weight: 500;">MD3 动态色彩体系</span>
+      <span style="color: var(--text-muted); margin-left: 6px;" id="md3-status-text">已基于当前壁纸生成控件主色调</span>
+    </div>
+    <div class="md3-swatches">
+      <div class="md3-circle" id="swatch-primary" style="background: var(--md-sys-color-primary);" title="Primary"></div>
+      <div class="md3-circle" id="swatch-container" style="background: var(--md-sys-color-primary-container);" title="Container"></div>
+    </div>
+  </div>
+
+  <!-- 1. 悬浮布局设置 -->
+  <div class="card" id="card-floating">
+    <div class="card-header">
+      <div class="card-title">悬浮布局模式</div>
+      <label class="switch-label">
+        <input type="checkbox" id="switch-floating" checked>
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+
+    <div id="floating-controls-body">
+      <!-- 材质体系切换 -->
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>玻璃材质体系</span>
+          <span class="val-badge" id="val-mat-badge">苹果液态玻璃</span>
+        </div>
+        <div class="segmented" style="margin-top: 6px; margin-bottom: 6px;">
+          <button type="button" class="segmented-btn" id="btn-mat-frosted" data-mat="frosted">亚克力毛玻璃</button>
+          <button type="button" class="segmented-btn active" id="btn-mat-liquid" data-mat="liquid">苹果液态玻璃</button>
+        </div>
+      </div>
+
+      <!-- 材质 1：亚克力毛玻璃专属设置 -->
+      <div id="panel-frosted" style="display: none;">
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>组件透明度 (Opacity)</span>
+            <span class="val-badge" id="val-frosted-opacity">65%</span>
+          </div>
+          <input type="range" id="slider-frosted-opacity" min="0" max="100" value="65">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>毛玻璃模糊度 (Acrylic Blur)</span>
+            <span class="val-badge" id="val-frosted-blur">24px</span>
+          </div>
+          <input type="range" id="slider-frosted-blur" min="0" max="80" value="24">
+        </div>
+      </div>
+
+      <!-- 材质 2：苹果液态玻璃专属设置 -->
+      <div id="panel-liquid">
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>玻璃通透度 (Clarity / Opacity)</span>
+            <span class="val-badge" id="val-liquid-opacity">35%</span>
+          </div>
+          <input type="range" id="slider-liquid-opacity" min="5" max="90" value="35">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>光线折射强度 (Refraction Distortion)</span>
+            <span class="val-badge" id="val-liquid-refract">20</span>
+          </div>
+          <input type="range" id="slider-liquid-refract" min="0" max="50" value="20">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>折射波纹流体度 (Fluid Wave)</span>
+            <span class="val-badge" id="val-liquid-wave">2</span>
+          </div>
+          <input type="range" id="slider-liquid-wave" min="1" max="5" value="2">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>边缘晶体高光 (Specular Rim)</span>
+            <span class="val-badge" id="val-liquid-specular">75%</span>
+          </div>
+          <input type="range" id="slider-liquid-specular" min="0" max="100" value="75">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>玻璃厚度与内微光 (Inner Glow)</span>
+            <span class="val-badge" id="val-liquid-glow">25%</span>
+          </div>
+          <input type="range" id="slider-liquid-glow" min="0" max="100" value="25">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label-row">
+            <span>透镜基础微模糊 (Lens Base Blur)</span>
+            <span class="val-badge" id="val-liquid-blur">8px</span>
+          </div>
+          <input type="range" id="slider-liquid-blur" min="0" max="60" value="8">
+        </div>
+      </div>
+
+      <!-- 通用悬浮栅格间隙与圆角 -->
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>组件与四周间距 (Gutter Spacing)</span>
+          <span class="val-badge" id="val-gutter">10px</span>
+        </div>
+        <input type="range" id="slider-gutter" min="0" max="48" value="10">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>悬浮圆角 (Border Radius)</span>
+          <span class="val-badge" id="val-radius">16px</span>
+        </div>
+        <input type="range" id="slider-radius" min="0" max="48" value="16">
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 底部壁纸设置 -->
+  <div class="card" id="card-wallpaper">
+    <div class="card-header">
+      <div class="card-title">底部背景壁纸</div>
+      <label class="switch-label">
+        <input type="checkbox" id="switch-wallpaper" checked>
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+
+    <div id="wallpaper-controls-body">
+      <!-- 类型选择 -->
+      <div class="segmented">
+        <button class="segmented-btn" id="btn-type-video" data-type="video">动态视频</button>
+        <button class="segmented-btn" id="btn-type-image" data-type="image">静态图片</button>
+        <button class="segmented-btn" id="btn-type-none" data-type="none">关闭壁纸</button>
+      </div>
+
+      <!-- 自定义链接 / 本地文件路径 -->
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>壁纸路径或网络地址 (Path / URL)</span>
+        </div>
+        <div class="text-input-wrap">
+          <input type="text" class="text-input" id="input-wallpaper-url" placeholder="输入绝对路径 (如 /home/...) 或在线 URL" />
+          <button class="file-btn" id="btn-choose-file">选择本地文件</button>
+          <input type="file" id="file-picker" style="display:none;" accept="image/*,video/*">
+        </div>
+      </div>
+
+      <!-- 壁纸渲染滤镜调节 -->
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>壁纸模糊 (Wallpaper Blur)</span>
+          <span class="val-badge" id="val-wp-blur">0px</span>
+        </div>
+        <input type="range" id="slider-wp-blur" min="0" max="60" value="0">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>壁纸明亮度 (Brightness)</span>
+          <span class="val-badge" id="val-wp-brightness">100%</span>
+        </div>
+        <input type="range" id="slider-wp-brightness" min="20" max="180" value="100">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>暗色遮罩度 (Dim Overlay)</span>
+          <span class="val-badge" id="val-wp-dim">10%</span>
+        </div>
+        <input type="range" id="slider-wp-dim" min="0" max="95" value="10">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    const state = {
+      injection: {
+        enabled: false,
+        lastError: null
+      },
+      floating: {
+        enabled: true,
+        material: "liquid",
+        gutter: 10,
+        radius: 16,
+        opacity: 0.65,
+        blur: 24,
+        frosted: {
+          opacity: 0.65,
+          blur: 24
+        },
+        liquid: {
+          opacity: 0.35,
+          refraction: 20,
+          wave: 2,
+          blur: 8,
+          specular: 0.75,
+          innerGlow: 0.25
+        }
+      },
+      wallpaper: {
+        enabled: true,
+        type: "video",
+        url: "/home/jingxue/Videos/视频壁纸/星空と少女.mp4",
+        blur: 0,
+        brightness: 1.0,
+        dim: 0.1,
+        fit: "cover"
+      }
+    };
+
+    // Elements
+    const hookCard = document.getElementById("hook-card");
+    const hookBadge = document.getElementById("hook-badge");
+    const hookDesc = document.getElementById("hook-desc");
+    const btnInject = document.getElementById("btn-inject");
+    const btnEject = document.getElementById("btn-eject");
+
+    const switchFloating = document.getElementById("switch-floating");
+    const floatingControlsBody = document.getElementById("floating-controls-body");
+    const valMatBadge = document.getElementById("val-mat-badge");
+    const btnMatFrosted = document.getElementById("btn-mat-frosted");
+    const btnMatLiquid = document.getElementById("btn-mat-liquid");
+    const panelFrosted = document.getElementById("panel-frosted");
+    const panelLiquid = document.getElementById("panel-liquid");
+
+    const sliderFrostedOpacity = document.getElementById("slider-frosted-opacity");
+    const valFrostedOpacity = document.getElementById("val-frosted-opacity");
+    const sliderFrostedBlur = document.getElementById("slider-frosted-blur");
+    const valFrostedBlur = document.getElementById("val-frosted-blur");
+
+    const sliderLiquidOpacity = document.getElementById("slider-liquid-opacity");
+    const valLiquidOpacity = document.getElementById("val-liquid-opacity");
+    const sliderLiquidRefract = document.getElementById("slider-liquid-refract");
+    const valLiquidRefract = document.getElementById("val-liquid-refract");
+    const sliderLiquidWave = document.getElementById("slider-liquid-wave");
+    const valLiquidWave = document.getElementById("val-liquid-wave");
+    const sliderLiquidSpecular = document.getElementById("slider-liquid-specular");
+    const valLiquidSpecular = document.getElementById("val-liquid-specular");
+    const sliderLiquidGlow = document.getElementById("slider-liquid-glow");
+    const valLiquidGlow = document.getElementById("val-liquid-glow");
+    const sliderLiquidBlur = document.getElementById("slider-liquid-blur");
+    const valLiquidBlur = document.getElementById("val-liquid-blur");
+
+    const sliderGutter = document.getElementById("slider-gutter");
+    const valGutter = document.getElementById("val-gutter");
+    const sliderRadius = document.getElementById("slider-radius");
+    const valRadius = document.getElementById("val-radius");
+
+    const switchWallpaper = document.getElementById("switch-wallpaper");
+    const wallpaperControlsBody = document.getElementById("wallpaper-controls-body");
+    const btnTypeVideo = document.getElementById("btn-type-video");
+    const btnTypeImage = document.getElementById("btn-type-image");
+    const btnTypeNone = document.getElementById("btn-type-none");
+    const inputWallpaperUrl = document.getElementById("input-wallpaper-url");
+    const btnChooseFile = document.getElementById("btn-choose-file");
+    const filePicker = document.getElementById("file-picker");
+    const sliderWpBlur = document.getElementById("slider-wp-blur");
+    const valWpBlur = document.getElementById("val-wp-blur");
+    const sliderWpBrightness = document.getElementById("slider-wp-brightness");
+    const valWpBrightness = document.getElementById("val-wp-brightness");
+    const sliderWpDim = document.getElementById("slider-wp-dim");
+    const valWpDim = document.getElementById("val-wp-dim");
+    const btnReset = document.getElementById("btn-reset");
+
+    const swatchPrimary = document.getElementById("swatch-primary");
+    const swatchContainer = document.getElementById("swatch-container");
+    const md3StatusText = document.getElementById("md3-status-text");
+
+    // ========================================================
+    // Material Design 3 (MD3) 动态取色算法系统
+    // ========================================================
+    function rgbToHsl(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+      return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+    }
+
+    function hslToHex(h, s, l) {
+      s /= 100; l /= 100;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    function applyMd3Theme(h, s, l) {
+      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      const primaryTone = isDark ? 80 : 40;
+      const onPrimaryTone = isDark ? 20 : 100;
+      const primaryContainerTone = isDark ? 30 : 90;
+      const onPrimaryContainerTone = isDark ? 90 : 10;
+      const outlineTone = isDark ? 60 : 50;
+
+      const primary = hslToHex(h, Math.min(s, 85), primaryTone);
+      const onPrimary = hslToHex(h, Math.min(s, 70), onPrimaryTone);
+      const primaryContainer = hslToHex(h, Math.min(s, 65), primaryContainerTone);
+      const onPrimaryContainer = hslToHex(h, Math.min(s, 85), onPrimaryContainerTone);
+      const outline = hslToHex(h, Math.min(s, 30), outlineTone);
+
+      document.documentElement.style.setProperty('--md-sys-color-primary', primary);
+      document.documentElement.style.setProperty('--md-sys-color-on-primary', onPrimary);
+      document.documentElement.style.setProperty('--md-sys-color-primary-container', primaryContainer);
+      document.documentElement.style.setProperty('--md-sys-color-on-primary-container', onPrimaryContainer);
+      document.documentElement.style.setProperty('--md-sys-color-outline', outline);
+      document.documentElement.style.setProperty('--accent', primary);
+      document.documentElement.style.setProperty('--toggle-active', primary);
+      document.documentElement.style.setProperty('--accent-glow', primary + '40');
+
+      if (swatchPrimary) swatchPrimary.style.background = primary;
+      if (swatchContainer) swatchContainer.style.background = primaryContainer;
+      if (md3StatusText) md3StatusText.innerText = `取色完成 (H:${h}° S:${s}%)`;
+    }
+
+    function extractMd3ColorFromMedia(rawUrl, type) {
+      if (!rawUrl || type === 'none') {
+        applyMd3Theme(210, 75, 50);
+        return;
+      }
+
+      // Convert local path to media endpoint
+      let url = rawUrl;
+      if (rawUrl.startsWith('/') || rawUrl.startsWith('file://')) {
+        let clean = rawUrl.startsWith('file://') ? rawUrl.slice(7) : rawUrl;
+        url = `/api/media?file=${encodeURIComponent(clean)}`;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+
+      function processPixels() {
+        try {
+          const imgData = ctx.getImageData(0, 0, 64, 64).data;
+          const bins = new Array(16).fill(0).map(() => ({ count: 0, r: 0, g: 0, b: 0, chroma: 0 }));
+
+          for (let i = 0; i < imgData.length; i += 16) {
+            const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2], a = imgData[i + 3];
+            if (a < 128) continue;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            const l = (max + min) / 2;
+            if (l < 15 || l > 240) continue;
+
+            const [h, s] = rgbToHsl(r, g, b);
+            const chroma = max - min;
+            if (chroma < 14) continue;
+
+            const binIdx = Math.floor((h % 360) / 22.5);
+            const bin = bins[binIdx];
+            bin.count++;
+            bin.r += r;
+            bin.g += g;
+            bin.b += b;
+            bin.chroma += chroma;
+          }
+
+          let bestBin = null;
+          let maxScore = -1;
+          for (const bin of bins) {
+            if (bin.count === 0) continue;
+            const avgChroma = bin.chroma / bin.count;
+            const score = bin.count * (avgChroma + 15);
+            if (score > maxScore) {
+              maxScore = score;
+              bestBin = bin;
+            }
+          }
+
+          if (bestBin) {
+            const avgR = Math.round(bestBin.r / bestBin.count);
+            const avgG = Math.round(bestBin.g / bestBin.count);
+            const avgB = Math.round(bestBin.b / bestBin.count);
+            const [h, s, l] = rgbToHsl(avgR, avgG, avgB);
+            applyMd3Theme(h, Math.max(s, 50), l);
+          } else {
+            applyMd3Theme(210, 75, 50);
+          }
+        } catch (e) {
+          applyMd3Theme(210, 75, 50);
+        }
+      }
+
+      if (type === 'video') {
+        const video = document.createElement('video');
+        video.crossOrigin = 'anonymous';
+        video.muted = true;
+        video.src = url;
+        video.currentTime = 1;
+        video.onloadeddata = () => {
+          try {
+            ctx.drawImage(video, 0, 0, 64, 64);
+            processPixels();
+          } catch(e) {
+            applyMd3Theme(210, 75, 50);
+          }
+        };
+        video.onerror = () => applyMd3Theme(210, 75, 50);
+      } else {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = url;
+        img.onload = () => {
+          try {
+            ctx.drawImage(img, 0, 0, 64, 64);
+            processPixels();
+          } catch(e) {
+            applyMd3Theme(210, 75, 50);
+          }
+        };
+        img.onerror = () => applyMd3Theme(210, 75, 50);
+      }
+    }
+
+    // ========================================================
+    // UI 同步与状态渲染
+    // ========================================================
+    function syncUIFromState() {
+      // 1. Hook Card Status
+      if (state.injection.lastError) {
+        hookBadge.className = "hook-status-badge hook-status-error";
+        hookBadge.innerText = "注入受阻已安全回滚";
+        hookDesc.innerHTML = `<span style="color:#ef4444; font-weight:600;">注入被安全拦截：</span>${state.injection.lastError}<br><span style="color:var(--text-muted);">已安全终止注入，避免破坏官方界面。</span>`;
+        btnInject.style.display = "block";
+        btnInject.innerText = "重新尝试校验并注入";
+        btnEject.style.display = "none";
+      } else if (state.injection.enabled) {
+        hookBadge.className = "hook-status-badge hook-status-active";
+        hookBadge.innerText = "增强控制已激活 (运行中)";
+        hookDesc.innerText = "DOM 结构完整性校验通过，悬浮布局、毛玻璃与壁纸渲染已安全生效。";
+        btnInject.style.display = "none";
+        btnEject.style.display = "block";
+      } else {
+        hookBadge.className = "hook-status-badge hook-status-inactive";
+        hookBadge.innerText = "未注入 (官方原生模式)";
+        hookDesc.innerText = "当前处于安全保护模式。尚未注入任何破坏性样式或壁纸底板。点击下方按钮注入以启用增强控制。";
+        btnInject.style.display = "block";
+        btnInject.innerText = "注入以启用增强控制";
+        btnEject.style.display = "none";
+      }
+
+      // If not injected, disable control cards
+      const isInjected = state.injection.enabled;
+      document.getElementById("card-floating").classList.toggle("disabled-group", !isInjected);
+      document.getElementById("card-wallpaper").classList.toggle("disabled-group", !isInjected);
+
+      // 2. Floating & Material controls
+      switchFloating.checked = state.floating.enabled;
+      floatingControlsBody.className = state.floating.enabled ? "" : "disabled-group";
+
+      const isLiquid = (state.floating.material || "liquid") === "liquid";
+      btnMatLiquid.classList.toggle("active", isLiquid);
+      btnMatFrosted.classList.toggle("active", !isLiquid);
+      valMatBadge.innerText = isLiquid ? "苹果液态玻璃" : "亚克力毛玻璃";
+      panelLiquid.style.display = isLiquid ? "block" : "none";
+      panelFrosted.style.display = !isLiquid ? "block" : "none";
+
+      // Frosted controls
+      const frosted = state.floating.frosted || {
+        opacity: state.floating.opacity !== undefined ? state.floating.opacity : 0.65,
+        blur: state.floating.blur !== undefined ? state.floating.blur : 24
+      };
+      sliderFrostedOpacity.value = Math.round((frosted.opacity !== undefined ? frosted.opacity : 0.65) * 100);
+      valFrostedOpacity.innerText = sliderFrostedOpacity.value + "%";
+      sliderFrostedBlur.value = frosted.blur !== undefined ? frosted.blur : 24;
+      valFrostedBlur.innerText = sliderFrostedBlur.value + "px";
+
+      // Liquid controls
+      const liquid = state.floating.liquid || {
+        opacity: 0.35,
+        refraction: 20,
+        wave: 2,
+        blur: 8,
+        specular: 0.75,
+        innerGlow: 0.25
+      };
+      sliderLiquidOpacity.value = Math.round((liquid.opacity !== undefined ? liquid.opacity : 0.35) * 100);
+      valLiquidOpacity.innerText = sliderLiquidOpacity.value + "%";
+      sliderLiquidRefract.value = liquid.refraction !== undefined ? liquid.refraction : 20;
+      valLiquidRefract.innerText = sliderLiquidRefract.value;
+      sliderLiquidWave.value = liquid.wave !== undefined ? liquid.wave : 2;
+      valLiquidWave.innerText = sliderLiquidWave.value;
+      sliderLiquidSpecular.value = Math.round((liquid.specular !== undefined ? liquid.specular : 0.75) * 100);
+      valLiquidSpecular.innerText = sliderLiquidSpecular.value + "%";
+      sliderLiquidGlow.value = Math.round((liquid.innerGlow !== undefined ? liquid.innerGlow : 0.25) * 100);
+      valLiquidGlow.innerText = sliderLiquidGlow.value + "%";
+      sliderLiquidBlur.value = liquid.blur !== undefined ? liquid.blur : 8;
+      valLiquidBlur.innerText = sliderLiquidBlur.value + "px";
+
+      // Common controls
+      sliderGutter.value = state.floating.gutter;
+      valGutter.innerText = sliderGutter.value + "px";
+      sliderRadius.value = state.floating.radius;
+      valRadius.innerText = sliderRadius.value + "px";
+
+      // 3. Wallpaper controls
+      switchWallpaper.checked = state.wallpaper.enabled;
+      wallpaperControlsBody.className = state.wallpaper.enabled ? "" : "disabled-group";
+
+      btnTypeVideo.classList.toggle("active", state.wallpaper.type === "video");
+      btnTypeImage.classList.toggle("active", state.wallpaper.type === "image");
+      btnTypeNone.classList.toggle("active", state.wallpaper.type === "none");
+
+      inputWallpaperUrl.value = state.wallpaper.url || "";
+      sliderWpBlur.value = state.wallpaper.blur;
+      valWpBlur.innerText = sliderWpBlur.value + "px";
+      sliderWpBrightness.value = Math.round(state.wallpaper.brightness * 100);
+      valWpBrightness.innerText = sliderWpBrightness.value + "%";
+      sliderWpDim.value = Math.round(state.wallpaper.dim * 100);
+      valWpDim.innerText = sliderWpDim.value + "%";
+
+      // Trigger MD3 extraction from wallpaper
+      extractMd3ColorFromMedia(state.wallpaper.url, state.wallpaper.enabled ? state.wallpaper.type : 'none');
+    }
+
+    let changeTimer = null;
+    function emitChange() {
+      if (changeTimer) clearTimeout(changeTimer);
+      changeTimer = setTimeout(async () => {
+        try {
+          await fetch("/api/theme-change", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(state)
+          });
+        } catch (e) {
+          console.error("Theme change API error:", e);
+        }
+      }, 50);
+    }
+
+    // ========================================================
+    // CDP 免侵入全外置注入与撤销交互 (纯插件架构，免疫本体更新)
+    // ========================================================
+    btnInject.onclick = async () => {
+      hookDesc.innerText = "正在通过 CDP 连接 Antigravity 宿主主窗口并安全校验与注入材质...";
+      btnInject.disabled = true;
+      btnInject.innerText = "正在校验并注入...";
+      try {
+        const res = await fetch("/api/inject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(state)
+        });
+        const data = await res.json();
+        if (data.success) {
+          state.injection.enabled = true;
+          state.injection.lastError = null;
+        } else {
+          state.injection.enabled = false;
+          state.injection.lastError = data.error || "注入失败";
+        }
+      } catch (err) {
+        state.injection.enabled = false;
+        state.injection.lastError = err.message || "请求注入接口失败";
+      } finally {
+        btnInject.disabled = false;
+        syncUIFromState();
+      }
+    };
+
+    btnEject.onclick = async () => {
+      hookDesc.innerText = "正在通过 CDP 安全撤销注入并完整恢复官方原生界面...";
+      btnEject.disabled = true;
+      btnEject.innerText = "正在安全卸载...";
+      try {
+        const res = await fetch("/api/eject", {
+          method: "POST"
+        });
+        const data = await res.json();
+        if (data.success) {
+          state.injection.enabled = false;
+          state.injection.lastError = null;
+        } else {
+          state.injection.lastError = data.error || "卸载失败";
+        }
+      } catch (err) {
+        state.injection.lastError = err.message || "请求卸载接口失败";
+      } finally {
+        btnEject.disabled = false;
+        syncUIFromState();
+      }
+    };
+
+    // Event Bindings
+    switchFloating.onchange = () => {
+      state.floating.enabled = switchFloating.checked;
+      syncUIFromState();
+      emitChange();
+    };
+
+    btnMatFrosted.onclick = () => {
+      state.floating.material = "frosted";
+      syncUIFromState();
+      emitChange();
+    };
+
+    btnMatLiquid.onclick = () => {
+      state.floating.material = "liquid";
+      syncUIFromState();
+      emitChange();
+    };
+
+    // Frosted inputs
+    sliderFrostedOpacity.oninput = () => {
+      if (!state.floating.frosted) state.floating.frosted = {};
+      state.floating.frosted.opacity = Number(sliderFrostedOpacity.value) / 100;
+      state.floating.opacity = state.floating.frosted.opacity;
+      valFrostedOpacity.innerText = sliderFrostedOpacity.value + "%";
+      emitChange();
+    };
+
+    sliderFrostedBlur.oninput = () => {
+      if (!state.floating.frosted) state.floating.frosted = {};
+      state.floating.frosted.blur = Number(sliderFrostedBlur.value);
+      state.floating.blur = state.floating.frosted.blur;
+      valFrostedBlur.innerText = sliderFrostedBlur.value + "px";
+      emitChange();
+    };
+
+    // Liquid inputs
+    sliderLiquidOpacity.oninput = () => {
+      if (!state.floating.liquid) state.floating.liquid = {};
+      state.floating.liquid.opacity = Number(sliderLiquidOpacity.value) / 100;
+      valLiquidOpacity.innerText = sliderLiquidOpacity.value + "%";
+      emitChange();
+    };
+
+    sliderLiquidRefract.oninput = () => {
+      if (!state.floating.liquid) state.floating.liquid = {};
+      state.floating.liquid.refraction = Number(sliderLiquidRefract.value);
+      valLiquidRefract.innerText = sliderLiquidRefract.value;
+      emitChange();
+    };
+
+    sliderLiquidWave.oninput = () => {
+      if (!state.floating.liquid) state.floating.liquid = {};
+      state.floating.liquid.wave = Number(sliderLiquidWave.value);
+      valLiquidWave.innerText = sliderLiquidWave.value;
+      emitChange();
+    };
+
+    sliderLiquidSpecular.oninput = () => {
+      if (!state.floating.liquid) state.floating.liquid = {};
+      state.floating.liquid.specular = Number(sliderLiquidSpecular.value) / 100;
+      valLiquidSpecular.innerText = sliderLiquidSpecular.value + "%";
+      emitChange();
+    };
+
+    sliderLiquidGlow.oninput = () => {
+      if (!state.floating.liquid) state.floating.liquid = {};
+      state.floating.liquid.innerGlow = Number(sliderLiquidGlow.value) / 100;
+      valLiquidGlow.innerText = sliderLiquidGlow.value + "%";
+      emitChange();
+    };
+
+    sliderLiquidBlur.oninput = () => {
+      if (!state.floating.liquid) state.floating.liquid = {};
+      state.floating.liquid.blur = Number(sliderLiquidBlur.value);
+      valLiquidBlur.innerText = sliderLiquidBlur.value + "px";
+      emitChange();
+    };
+
+    sliderGutter.oninput = () => {
+      state.floating.gutter = Number(sliderGutter.value);
+      valGutter.innerText = sliderGutter.value + "px";
+      emitChange();
+    };
+
+    sliderRadius.oninput = () => {
+      state.floating.radius = Number(sliderRadius.value);
+      valRadius.innerText = sliderRadius.value + "px";
+      emitChange();
+    };
+
+    switchWallpaper.onchange = () => {
+      state.wallpaper.enabled = switchWallpaper.checked;
+      syncUIFromState();
+      emitChange();
+    };
+
+    btnTypeVideo.onclick = () => {
+      state.wallpaper.type = "video";
+      syncUIFromState();
+      emitChange();
+    };
+
+    btnTypeImage.onclick = () => {
+      state.wallpaper.type = "image";
+      syncUIFromState();
+      emitChange();
+    };
+
+    btnTypeNone.onclick = () => {
+      state.wallpaper.type = "none";
+      syncUIFromState();
+      emitChange();
+    };
+
+    inputWallpaperUrl.onchange = () => {
+      state.wallpaper.url = inputWallpaperUrl.value.trim();
+      syncUIFromState();
+      emitChange();
+    };
+
+    btnChooseFile.onclick = () => {
+      filePicker.click();
+    };
+
+    filePicker.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const isVideo = file.type.startsWith("video/");
+      state.wallpaper.type = isVideo ? "video" : "image";
+      
+      // Use local file path or object URL
+      state.wallpaper.url = file.name;
+      inputWallpaperUrl.value = file.name;
+      syncUIFromState();
+      emitChange();
+    };
+
+    sliderWpBlur.oninput = () => {
+      state.wallpaper.blur = Number(sliderWpBlur.value);
+      valWpBlur.innerText = sliderWpBlur.value + "px";
+      emitChange();
+    };
+
+    sliderWpBrightness.oninput = () => {
+      state.wallpaper.brightness = Number(sliderWpBrightness.value) / 100;
+      valWpBrightness.innerText = sliderWpBrightness.value + "%";
+      emitChange();
+    };
+
+    sliderWpDim.oninput = () => {
+      state.wallpaper.dim = Number(sliderWpDim.value) / 100;
+      valWpDim.innerText = sliderWpDim.value + "%";
+      emitChange();
+    };
+
+    btnReset.onclick = () => {
+      state.floating = {
+        enabled: true,
+        material: "liquid",
+        gutter: 10,
+        radius: 16,
+        opacity: 0.65,
+        blur: 24,
+        frosted: {
+          opacity: 0.65,
+          blur: 24
+        },
+        liquid: {
+          opacity: 0.35,
+          refraction: 20,
+          wave: 2,
+          blur: 8,
+          specular: 0.75,
+          innerGlow: 0.25
+        }
+      };
+      state.wallpaper = {
+        enabled: true,
+        type: "video",
+        url: "/home/jingxue/Videos/视频壁纸/星空と少女.mp4",
+        blur: 0,
+        brightness: 1.0,
+        dim: 0.1,
+        fit: "cover"
+      };
+      syncUIFromState();
+      emitChange();
+    };
+
+    // Load initial status & config from sidecar
+    async function init() {
+      try {
+        const res = await fetch("/api/status");
+        if (res.ok) {
+          const data = await res.json();
+          const cfg = data.config || {};
+          if (cfg.injection) Object.assign(state.injection, cfg.injection);
+          if (cfg.floating) {
+            Object.assign(state.floating, cfg.floating);
+            if (cfg.floating.frosted) Object.assign(state.floating.frosted, cfg.floating.frosted);
+            if (cfg.floating.liquid) Object.assign(state.floating.liquid, cfg.floating.liquid);
+          }
+          if (cfg.wallpaper) Object.assign(state.wallpaper, cfg.wallpaper);
+
+          if (!data.cdpConnected) {
+            state.injection.lastError = `未检测到宿主调试端口 (Port ${data.cdpPort})。请使用官方包装器启动或添加 --remote-debugging-port=${data.cdpPort}`;
+            state.injection.enabled = false;
+          } else {
+            state.injection.enabled = !!(data.hostState?.isInjected ?? data.isInjected);
+            state.injection.lastError = null;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load status from server, using defaults", e);
+      }
+      syncUIFromState();
+    }
+
+    init();
+
+    // 状态自愈监听与焦点同步
+    window.addEventListener("focus", init);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) init();
+    });
+    setInterval(() => {
+      if (!document.hidden) init();
+    }, 4000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "theme-control-center",
+  "displayName": "Theme & Wallpaper Control Center",
+  "version": "1.0.0",
+  "description": "Visual Control Center for Antigravity: toggle floating card layout, tune glassmorphism opacity, blur, and gutters, and customize background wallpapers with static images or dynamic videos.",
+  "logo": "assets/logo.svg",
+  "author": "Wandering233",
+  "homepage": "https://github.com/Wandering233/antigravity-theme-control-center",
+  "repository": "https://github.com/Wandering233/antigravity-theme-control-center",
+  "suggestedPrompts": [
+    "打开主题控制中心面板",
+    "切换毛玻璃流体悬浮卡片样式",
+    "配置动态视频壁纸与透明度"
+  ]
+}
