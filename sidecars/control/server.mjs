@@ -466,11 +466,44 @@ function hostDomAudit() {
     userAgent: navigator.userAgent,
     hasShell: !!shell,
     hasSheet: !!document.querySelector(".agy-sheet"),
-    floatingVars: {
-      gutter: getComputedStyle(document.documentElement).getPropertyValue("--ag-gutter").trim(),
-      radius: getComputedStyle(document.documentElement).getPropertyValue("--ag-glass-radius").trim(),
-      glassOpacity: getComputedStyle(document.documentElement).getPropertyValue("--ag-glass-opacity").trim()
-    },
+    floatingVars: (() => {
+      const ds = getComputedStyle(document.documentElement);
+      const v = (n) => ds.getPropertyValue(n).trim();
+      return {
+        material: document.documentElement.getAttribute("data-ag-material") || "none",
+        gutter: v("--ag-gutter"),
+        radius: v("--ag-glass-radius"),
+        glassOpacity: v("--ag-glass-opacity"),
+        glassBlur: v("--ag-glass-blur"),
+        liquidOpacity: v("--ag-liquid-opacity"),
+        liquidBlur: v("--ag-liquid-blur"),
+        liquidRefract: v("--ag-liquid-refraction")
+      };
+    })(),
+    paint: (() => {
+      const bg = (el) => {
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        return {
+          color: String(cs.backgroundColor || "").slice(0, 40),
+          image: String(cs.backgroundImage || "").slice(0, 40)
+        };
+      };
+      const wpEl = document.getElementById("ag-wallpaper-container");
+      const wpImg = document.getElementById("ag-wallpaper-img");
+      return {
+        html: bg(document.documentElement),
+        body: bg(document.body),
+        shell: bg(document.querySelector(".agy-shell")),
+        wallpaper: {
+          layer: !!wpEl,
+          layerZ: wpEl ? getComputedStyle(wpEl).zIndex : null,
+          imgSrc: wpImg ? String(wpImg.getAttribute("src") || "").slice(0, 80) : null,
+          imgLoaded: wpImg ? (wpImg.complete && wpImg.naturalWidth > 0) : false,
+          imgSize: wpImg && wpImg.naturalWidth ? wpImg.naturalWidth + "x" + wpImg.naturalHeight : null
+        }
+      };
+    })(),
     surfaces: S,
     summary: {
       total: required.length,
@@ -781,6 +814,9 @@ const MIME_TYPES = {
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
   ".gif": "image/gif",
+  ".bmp": "image/bmp",
+  ".avif": "image/avif",
+  ".ico": "image/x-icon",
   ".mp4": "video/mp4",
   ".webm": "video/webm",
   ".ogg": "video/ogg"
