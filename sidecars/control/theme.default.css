@@ -1063,3 +1063,21 @@ body:not(.theme-light) button:has(> svg).rounded-full.absolute.bottom-4:hover {
 }
 
 
+
+/* ========================================================
+   13. Antigravity 2.29.0 兼容
+   2.29.0 起 .agy-sheet 自身绘制不透明白底 + 径向渐变（首页氛围光），
+   会整片盖住壁纸层与玻璃材质，表现为"右侧主体被多加了一层"。
+   仅在确实启用了壁纸时让出底色；未设壁纸时保留官方原有观感。
+   ======================================================== */
+html[data-ag-wallpaper="on"] .agy-sheet {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* 2.29.0 给主容器内层加了 container-type: size，
+   会形成包含块（backdrop root），使其内部元素的 backdrop-filter 无法取到壁纸。
+   这里关掉尺寸包含，让玻璃材质重新能采样到壁纸。 */
+html[data-ag-wallpaper="on"] .agy-sheet > div.relative.flex.w-full.h-full {
+  container-type: normal !important;
+}

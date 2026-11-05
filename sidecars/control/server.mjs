@@ -50,7 +50,8 @@ const DEFAULT_CONFIG = {
   }
 };
 
-async function getEffectiveCSS() {
+// 解析"实际生效"的样式表：随包基底 + 用户覆盖，并说明用的是哪一份
+async function resolveEffectiveCSS() {
   let baseCSS = "";
   if (existsSync(DEFAULT_CSS_FILE)) {
     try {
@@ -61,7 +62,8 @@ async function getEffectiveCSS() {
   }
 
   let userCSS = "";
-  if (existsSync(CSS_FILE)) {
+  const userExisted = existsSync(CSS_FILE);
+  if (userExisted) {
     try {
       userCSS = await readFile(CSS_FILE, "utf8");
     } catch (e) {}
@@ -70,40 +72,64 @@ async function getEffectiveCSS() {
       if (!existsSync(CONFIG_DIR)) await mkdir(CONFIG_DIR, { recursive: true });
       await writeFile(CSS_FILE, baseCSS, "utf8");
       console.log("[Sidecar] Auto-initialized custom.css from bundled template");
+      userCSS = baseCSS;
     } catch (e) {}
   }
 
-  return userCSS || baseCSS;
+  const norm = (v) => (v || "").replace(/\r\n/g, "\n").trim();
+  const nb = norm(baseCSS);
+  const nu = norm(userCSS);
+
+  let css = "", source = "none", mode = "none";
+
+  if (!userCSS && !baseCSS) {
+    css = ""; source = "none"; mode = "empty";
+  } else if (!userCSS) {
+    css = baseCSS; source = "theme.default.css (bundled)"; mode = "bundled";
+  } else if (!baseCSS) {
+    css = userCSS; source = "custom.css"; mode = "custom-only";
+  } else if (nu === nb) {
+    css = baseCSS; source = "theme.default.css (bundled)"; mode = "identical";
+  } else if (nb.startsWith(nu)) {
+    // custom.css 只是随包样式的旧副本（纯前缀 / CRLF 差异）→ 视为未自定义
+    css = baseCSS; source = "theme.default.css (bundled)"; mode = "stale-copy";
+    console.log("[Sidecar] custom.css 是随包样式的旧副本，改用新版内置样式");
+  } else {
+    css = baseCSS + "\n\n/* ===================== user custom.css overrides ===================== */\n" + userCSS;
+    source = "theme.default.css + custom.css"; mode = "stacked";
+  }
+
+  return {
+    css, source, mode,
+    chars: css.length,
+    customExists: userExisted,
+    bundledExists: existsSync(DEFAULT_CSS_FILE),
+    customChars: userCSS.length,
+    bundledChars: baseCSS.length
+  };
 }
 
-// 当前生效的样式表来源 + 与内置版本是否一致
-// （用户 custom.css 优先，容易残留旧版本，导致"跑的不是仓库里的样式"）
+async function getEffectiveCSS() {
+  const r = await resolveEffectiveCSS();
+  return r.css;
+}
+
+// 当前生效样式表的来源说明（诊断用，与 getEffectiveCSS 结论保持一致）
 async function effectiveCSSSource() {
-  const out = {
-    source: "none", chars: 0,
-    customExists: existsSync(CSS_FILE), bundledExists: existsSync(DEFAULT_CSS_FILE),
-    customChars: 0, bundledChars: 0, diverged: false,
-    customSha: null, bundledSha: null
+  const r = await resolveEffectiveCSS();
+  const sha = (v) => createHash("sha256").update(v || "", "utf8").digest("hex").slice(0, 12);
+  return {
+    source: r.source,
+    mode: r.mode,
+    chars: r.chars,
+    customExists: r.customExists,
+    bundledExists: r.bundledExists,
+    customChars: r.customChars,
+    bundledChars: r.bundledChars,
+    diverged: r.mode === "stacked",
+    customSha: r.customExists ? sha(await readFile(CSS_FILE, "utf8").catch(() => "")) : null,
+    bundledSha: r.bundledExists ? sha(await readFile(DEFAULT_CSS_FILE, "utf8").catch(() => "")) : null
   };
-  const sha = (s) => createHash("sha256").update(s || "", "utf8").digest("hex").slice(0, 12);
-  try {
-    if (out.customExists) {
-      const css = await readFile(CSS_FILE, "utf8");
-      out.customChars = (css || "").length;
-      out.customSha = sha(css);
-      if (css && css.length > 0) { out.source = "custom.css"; out.chars = css.length; }
-    }
-    if (out.bundledExists) {
-      const bundled = await readFile(DEFAULT_CSS_FILE, "utf8");
-      out.bundledChars = (bundled || "").length;
-      out.bundledSha = sha(bundled);
-      if (out.source === "none") { out.source = "theme.default.css (bundled)"; out.chars = out.bundledChars; }
-    }
-    out.diverged = !!(out.customExists && out.customChars > 0 && out.bundledExists && out.customSha !== out.bundledSha);
-  } catch (e) {
-    out.error = e.message;
-  }
-  return out;
 }
 
 async function getOrCreateConfig() {
@@ -705,6 +731,10 @@ function hostDomApply(config, sidecarPort) {
 
   if (config.wallpaper) {
     const wp = config.wallpaper;
+    // 供 CSS 判断是否该让出官方自带底色（2.29.0 起 .agy-sheet 自带白底 + 径向渐变）
+    const wpOn = !!(wp.enabled && wp.type && wp.type !== "none" && wp.url);
+    document.documentElement.setAttribute("data-ag-wallpaper", wpOn ? "on" : "off");
+
     if (wp.blur !== undefined) docStyle.setProperty("--ag-wallpaper-blur", `${wp.blur}px`);
     if (wp.brightness !== undefined) docStyle.setProperty("--ag-wallpaper-brightness", `${wp.brightness}`);
     if (wp.dim !== undefined) docStyle.setProperty("--ag-wallpaper-dim", `${wp.dim}`);
