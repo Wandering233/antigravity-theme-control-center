@@ -75,6 +75,25 @@ async function getEffectiveCSS() {
   return userCSS || baseCSS;
 }
 
+// 当前生效的样式表来源（用户 custom.css 优先，否则用随包内置）
+async function effectiveCSSSource() {
+  const out = { source: "none", chars: 0, customExists: existsSync(CSS_FILE), bundledExists: existsSync(DEFAULT_CSS_FILE) };
+  try {
+    if (out.customExists) {
+      const css = await readFile(CSS_FILE, "utf8");
+      if (css && css.length > 0) { out.source = "custom.css"; out.chars = css.length; return out; }
+    }
+    if (out.bundledExists) {
+      const css = await readFile(DEFAULT_CSS_FILE, "utf8");
+      out.source = "theme.default.css (bundled)";
+      out.chars = (css || "").length;
+    }
+  } catch (e) {
+    out.error = e.message;
+  }
+  return out;
+}
+
 async function getOrCreateConfig() {
   try {
     if (!existsSync(CONFIG_DIR)) {
@@ -269,7 +288,7 @@ class CdpEngine {
   }
 
   async evaluate(fn, ...args) {
-    const helperCode = `${hostDomProbe.toString()};\n${hostDomApply.toString()};\n${hostDomEject.toString()};\n${hostDomGetState.toString()};\n`;
+    const helperCode = `${hostDomAudit.toString()};\n${hostDomProbe.toString()};\n${hostDomApply.toString()};\n${hostDomEject.toString()};\n${hostDomGetState.toString()};\n`;
     const expr = `(() => {\n${helperCode}\nreturn (${fn.toString()})(${args.map(a => JSON.stringify(a)).join(",")});\n})()`;
     const res = await this.call("Runtime.evaluate", {
       expression: expr,
@@ -357,6 +376,110 @@ function hostDomProbe() {
     hostTitle: (document.title || "").slice(0, 120),
     origin: (typeof location !== "undefined" ? location.origin : ""),
     ts: Date.now()
+  };
+}
+
+// ========================================================
+// 宿主结构诊断
+// 目的：把"部分样式没生效"变成可回传的结构化数据 ——
+// 哪个样式面存在、选择器命中几个、最终计算样式是否真的被改写。
+// ========================================================
+function hostDomAudit() {
+  const surface = (id, label, selector, opts) => {
+    const o = opts || {};
+    let els = [];
+    try { els = Array.from(document.querySelectorAll(selector)); } catch (e) {
+      return { id, label, selector, count: 0, optional: !!o.optional, error: e.message };
+    }
+    const el = els[0];
+    if (!el) return { id, label, selector, count: 0, optional: !!o.optional, present: false };
+    const cs = getComputedStyle(el);
+    const radius = parseFloat(cs.borderTopLeftRadius) || 0;
+    const marginTop = parseFloat(cs.marginTop) || 0;
+    const width = parseFloat(cs.width) || 0;
+    const backdrop = (cs.backdropFilter && cs.backdropFilter !== "none")
+      ? cs.backdropFilter
+      : (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== "none") ? cs.webkitBackdropFilter : "none";
+
+    // 判定方式：
+    //   card     —— 吃到圆角 / 外边距 / 模糊，任一即可认为卡片化生效
+    //   position —— 规则用的是 top/left 偏移，检查 top 是否被改写
+    const top = parseFloat(cs.top);
+    let applied = true;
+    if (o.card) applied = radius > 0 || marginTop > 0 || backdrop !== "none";
+    else if (o.position) applied = !Number.isNaN(top) && top > 0;
+    // 折叠状态（如右侧面板收起时 width=0）不算失败
+    const collapsed = o.collapsible ? (width === 0) : false;
+
+    return {
+      id, label, selector,
+      count: els.length,
+      present: true,
+      optional: !!o.optional,
+      collapsed,
+      tag: el.tagName.toLowerCase(),
+      cls: String(el.className || "").slice(0, 140),
+      radius, marginTop, width, backdrop, top,
+      applied,
+      status: collapsed ? "collapsed" : (applied ? "applied" : "not-applied")
+    };
+  };
+
+  const S = [
+    surface("sidebar", "左侧边栏卡片", ".agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child", { card: true }),
+    surface("sheet", "主容器 .agy-sheet", ".agy-sheet", {}),
+    surface("main-pane", "中央主面板", ".agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child", { card: true }),
+    surface("aux-pane", "右侧辅助面板", ".agy-sheet > div.relative.flex.w-full.h-full > div:last-child", { card: true, collapsible: true, optional: true }),
+    surface("composer", "输入栏", ".surface-composer", { card: true, optional: true }),
+    surface("viewport", "对话滚动视口", "[data-testid='autoscroll-viewport']", { optional: true }),
+    surface("settings", "设置弹窗", ".settings-modal-container", { optional: true, card: true }),
+    surface("titlebar", "顶栏", "div:has(> .flex.items-center.pl-2 > [data-testid='app-icon-new-conversation-button'])", { position: true, optional: true })
+  ];
+
+  const outline = (el, depth, budget) => {
+    if (!el || depth < 0 || budget.n <= 0) return null;
+    budget.n--;
+    const kids = [];
+    for (const c of Array.from(el.children).slice(0, 6)) {
+      if (budget.n <= 0) break;
+      kids.push(outline(c, depth - 1, budget));
+    }
+    return {
+      tag: el.tagName.toLowerCase(),
+      cls: String(el.className || "").slice(0, 100),
+      testid: (el.getAttribute && el.getAttribute("data-testid")) || undefined,
+      children: kids.filter(Boolean)
+    };
+  };
+
+  const injectedEl = document.getElementById("ag-user-theme");
+  const shell = document.querySelector(".agy-shell");
+  const required = S.filter((s) => s.present && !s.collapsed);
+
+  return {
+    ts: Date.now(),
+    view: (document.title || "").slice(0, 120),
+    injected: !!injectedEl,
+    injectedChars: injectedEl ? (injectedEl.textContent || "").length : 0,
+    material: document.documentElement.getAttribute("data-ag-material") || "none",
+    bodyClass: String(document.body.className || "").slice(0, 120),
+    userAgent: navigator.userAgent,
+    hasShell: !!shell,
+    hasSheet: !!document.querySelector(".agy-sheet"),
+    floatingVars: {
+      gutter: getComputedStyle(document.documentElement).getPropertyValue("--ag-gutter").trim(),
+      radius: getComputedStyle(document.documentElement).getPropertyValue("--ag-glass-radius").trim(),
+      glassOpacity: getComputedStyle(document.documentElement).getPropertyValue("--ag-glass-opacity").trim()
+    },
+    surfaces: S,
+    summary: {
+      total: required.length,
+      applied: required.filter((s) => s.applied).length,
+      collapsed: S.filter((s) => s.collapsed).map((s) => s.label),
+      absent: S.filter((s) => !s.present).map((s) => s.label),
+      notApplied: required.filter((s) => !s.applied).map((s) => s.label)
+    },
+    outline: shell ? outline(shell, 2, { n: 45 }) : outline(document.body, 2, { n: 30 })
   };
 }
 
@@ -850,6 +973,32 @@ const server = createServer(async (req, res) => {
       hostState,
       config: cfg
     }));
+    return;
+  }
+
+  // API: 宿主结构诊断（哪个样式面没生效、DOM 轮廓、生效样式表来源）
+  if (url.pathname === "/api/audit" && req.method === "GET") {
+    try {
+      const cdpOk = await cdp.connect();
+      if (!cdpOk) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: `无法连接宿主 CDP 端口 ${cdp.port}`, css: await effectiveCSSSource() }));
+        return;
+      }
+      const audit = await cdp.evaluate(hostDomAudit);
+      const css = await effectiveCSSSource();
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({
+        ok: true,
+        host: { title: audit.hostTitle, ua: audit.userAgent },
+        css,
+        version: { plugin: "1.0.0", cdpPort: cdp.port, sidecarPort: PORT },
+        audit
+      }));
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
     return;
   }
 

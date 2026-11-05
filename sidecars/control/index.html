@@ -497,6 +497,16 @@
       font-size: 11px; cursor: pointer;
     }
     .compat-recheck:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ===== 结构诊断 ===== */
+    .audit-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .audit-actions .btn-secondary { padding: 5px 12px; font-size: 12px; }
+    .audit-hint { font-size: 11px; color: var(--text-muted); }
+    .audit-src {
+      margin-top: 8px; font-size: 11px; color: var(--text-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -709,7 +719,21 @@
     </div>
   </div>
 
-  
+  <!-- 3. 结构诊断 -->
+  <div class="card" id="card-audit">
+    <div class="card-header">
+      <div class="card-title">结构诊断</div>
+      <button class="compat-recheck" id="btn-audit">运行诊断</button>
+    </div>
+    <div class="hook-desc" id="audit-desc">检查每个样式面是否真的生效，用来排查"只改了一半"的情况。</div>
+    <div class="compat-list" id="audit-list"></div>
+    <div class="audit-actions" id="audit-actions" style="display:none;">
+      <button class="btn-secondary" id="btn-audit-copy">复制诊断 JSON</button>
+      <button class="btn-secondary" id="btn-audit-download">下载 JSON</button>
+      <span class="audit-hint" id="audit-hint"></span>
+    </div>
+  </div>
+
   <!-- 内置文件浏览器（原生对话框不可用时的兜底） -->
   <div class="browse-mask" id="browse-mask">
     <div class="browse-panel">
@@ -1267,6 +1291,128 @@
       btnRecheck.textContent = old;
       btnRecheck.disabled = false;
     };
+
+    // ========================================================
+    // 结构诊断：把"只改了一半"定位到具体样式面
+    // ========================================================
+    const btnAudit = document.getElementById("btn-audit");
+    const auditList = document.getElementById("audit-list");
+    const auditDesc = document.getElementById("audit-desc");
+    const auditActions = document.getElementById("audit-actions");
+    const auditHint = document.getElementById("audit-hint");
+    let lastAuditJson = "";
+
+    function renderAudit(data) {
+      auditList.innerHTML = "";
+      const a = data.audit || {};
+      const surfaces = a.surfaces || [];
+
+      for (const s of surfaces) {
+        const item = document.createElement("div");
+        let cls = "warn";
+        let state = "未匹配";
+        if (s.present) {
+          if (s.collapsed) { cls = "warn"; state = "已收起，跳过"; }
+          else if (s.applied) { cls = "ok"; state = "已生效"; }
+          else { cls = "bad"; state = "命中但样式未生效"; }
+        } else {
+          cls = s.optional ? "warn" : "bad";
+          state = s.optional ? "未匹配（可选）" : "未匹配";
+        }
+        item.className = "compat-item " + cls;
+        const dot = document.createElement("span");
+        dot.className = "compat-dot";
+        const text = document.createElement("span");
+        text.textContent = s.label + " · " + state;
+        item.appendChild(dot);
+        item.appendChild(text);
+        auditList.appendChild(item);
+      }
+      auditList.classList.add("open");
+
+      const sum = a.summary || {};
+      const cssInfo = data.css || {};
+      auditDesc.innerHTML = "";
+
+      const line1 = document.createElement("div");
+      line1.textContent = `样式面 ${sum.applied || 0}/${sum.total || 0} 生效` +
+        (sum.notApplied && sum.notApplied.length ? `；未生效：${sum.notApplied.join("、")}` : "") +
+        (sum.absent && sum.absent.length ? `；未匹配：${sum.absent.join("、")}` : "");
+      auditDesc.appendChild(line1);
+
+      const line2 = document.createElement("div");
+      line2.className = "audit-src";
+      line2.textContent = `样式表：${cssInfo.source || "?"} · ${cssInfo.chars || 0} 字符 · 注入 ${a.injectedChars || 0} 字符` +
+        ` · 当前视图：${a.view || "?"}`;
+      auditDesc.appendChild(line2);
+
+      lastAuditJson = JSON.stringify(data, null, 2);
+      auditActions.style.display = "flex";
+      auditHint.textContent = "";
+    }
+
+    async function runAudit() {
+      btnAudit.disabled = true;
+      const old = btnAudit.textContent;
+      btnAudit.textContent = "诊断中…";
+      try {
+        const res = await fetch("/api/audit", { cache: "no-store" });
+        const data = await res.json();
+        if (!data.ok) {
+          auditDesc.textContent = "诊断失败：" + (data.error || "未知错误");
+          auditList.innerHTML = "";
+          auditActions.style.display = "none";
+          return;
+        }
+        renderAudit(data);
+      } catch (err) {
+        auditDesc.textContent = "诊断请求失败：" + err.message;
+      } finally {
+        btnAudit.disabled = false;
+        btnAudit.textContent = old;
+      }
+    }
+
+    btnAudit.onclick = runAudit;
+
+    async function copyAudit() {
+      if (!lastAuditJson) return;
+      try {
+        await navigator.clipboard.writeText(lastAuditJson);
+        auditHint.textContent = "已复制到剪贴板";
+      } catch (e) {
+        const ta = document.createElement("textarea");
+        ta.value = lastAuditJson;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          auditHint.textContent = "已复制到剪贴板";
+        } catch (e2) {
+          auditHint.textContent = "复制失败，请改用下载";
+        }
+        document.body.removeChild(ta);
+      }
+    }
+
+    function downloadAudit() {
+      if (!lastAuditJson) return;
+      const blob = new Blob([lastAuditJson], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "antigravity-theme-audit-" + Date.now() + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      auditHint.textContent = "已下载";
+    }
+
+    document.getElementById("btn-audit-copy").onclick = copyAudit;
+    document.getElementById("btn-audit-download").onclick = downloadAudit;
 
     btnInject.onclick = async () => {
       hookDesc.innerText = "正在通过 CDP 连接 Antigravity 宿主主窗口并安全校验与注入材质...";
