@@ -4,6 +4,7 @@ import { constants as FS_CONSTANTS, createReadStream, existsSync, watch } from "
 import { join, dirname, extname, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import os from "node:os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -75,19 +76,30 @@ async function getEffectiveCSS() {
   return userCSS || baseCSS;
 }
 
-// 当前生效的样式表来源（用户 custom.css 优先，否则用随包内置）
+// 当前生效的样式表来源 + 与内置版本是否一致
+// （用户 custom.css 优先，容易残留旧版本，导致"跑的不是仓库里的样式"）
 async function effectiveCSSSource() {
-  const out = { source: "none", chars: 0, customExists: existsSync(CSS_FILE), bundledExists: existsSync(DEFAULT_CSS_FILE) };
+  const out = {
+    source: "none", chars: 0,
+    customExists: existsSync(CSS_FILE), bundledExists: existsSync(DEFAULT_CSS_FILE),
+    customChars: 0, bundledChars: 0, diverged: false,
+    customSha: null, bundledSha: null
+  };
+  const sha = (s) => createHash("sha256").update(s || "", "utf8").digest("hex").slice(0, 12);
   try {
     if (out.customExists) {
       const css = await readFile(CSS_FILE, "utf8");
-      if (css && css.length > 0) { out.source = "custom.css"; out.chars = css.length; return out; }
+      out.customChars = (css || "").length;
+      out.customSha = sha(css);
+      if (css && css.length > 0) { out.source = "custom.css"; out.chars = css.length; }
     }
     if (out.bundledExists) {
-      const css = await readFile(DEFAULT_CSS_FILE, "utf8");
-      out.source = "theme.default.css (bundled)";
-      out.chars = (css || "").length;
+      const bundled = await readFile(DEFAULT_CSS_FILE, "utf8");
+      out.bundledChars = (bundled || "").length;
+      out.bundledSha = sha(bundled);
+      if (out.source === "none") { out.source = "theme.default.css (bundled)"; out.chars = out.bundledChars; }
     }
+    out.diverged = !!(out.customExists && out.customChars > 0 && out.bundledExists && out.customSha !== out.bundledSha);
   } catch (e) {
     out.error = e.message;
   }
@@ -411,6 +423,32 @@ function hostDomAudit() {
     // 折叠状态（如右侧面板收起时 width=0）不算失败
     const collapsed = o.collapsible ? (width === 0) : false;
 
+    // 不能只看元素自身：左侧边栏和中央面板的材质画在 ::before 上。
+    // 元素自身 backdrop-filter:none 是刻意规避 Chromium 嵌套滤镜限制，并非材质缺失。
+    const readPaint = (pseudo) => {
+      const style = getComputedStyle(el, pseudo);
+      const bd = style.backdropFilter && style.backdropFilter !== "none"
+        ? style.backdropFilter
+        : style.webkitBackdropFilter && style.webkitBackdropFilter !== "none"
+          ? style.webkitBackdropFilter
+          : "none";
+      return {
+        content: String(style.content || "").slice(0, 40),
+        backgroundColor: String(style.backgroundColor || "").slice(0, 160),
+        backgroundImage: String(style.backgroundImage || "none").slice(0, 240),
+        backdrop: String(bd).slice(0, 240),
+        opacity: style.opacity,
+        zIndex: style.zIndex,
+        position: style.position,
+        overflow: style.overflow
+      };
+    };
+    const selfPaint = readPaint(null);
+    const beforePaint = readPaint("::before");
+    const glassExpected = ["sidebar", "main-pane", "aux-pane"].includes(id);
+    const glassFilter = [selfPaint.backdrop, beforePaint.backdrop]
+      .some((v) => v !== "none" && /blur\(|ag-filter-liquid-refract/.test(v));
+
     return {
       id, label, selector,
       count: els.length,
@@ -420,6 +458,10 @@ function hostDomAudit() {
       tag: el.tagName.toLowerCase(),
       cls: String(el.className || "").slice(0, 140),
       radius, marginTop, width, backdrop, top,
+      glassExpected,
+      glassFilter,
+      paint: { self: selfPaint, before: beforePaint },
+      browserHoleAncestor: String(el.className || "").includes("browser-hole-ancestor"),
       applied,
       status: collapsed ? "collapsed" : (applied ? "applied" : "not-applied")
     };
@@ -466,6 +508,11 @@ function hostDomAudit() {
     userAgent: navigator.userAgent,
     hasShell: !!shell,
     hasSheet: !!document.querySelector(".agy-sheet"),
+    browserHole: {
+      shell: String((shell && shell.className) || "").includes("browser-hole-ancestor"),
+      sheet: String((document.querySelector(".agy-sheet") || {}).className || "").includes("browser-hole-ancestor"),
+      count: document.querySelectorAll(".browser-hole-ancestor").length
+    },
     floatingVars: (() => {
       const ds = getComputedStyle(document.documentElement);
       const v = (n) => ds.getPropertyValue(n).trim();
@@ -510,7 +557,8 @@ function hostDomAudit() {
       applied: required.filter((s) => s.applied).length,
       collapsed: S.filter((s) => s.collapsed).map((s) => s.label),
       absent: S.filter((s) => !s.present).map((s) => s.label),
-      notApplied: required.filter((s) => !s.applied).map((s) => s.label)
+      notApplied: required.filter((s) => !s.applied).map((s) => s.label),
+      materialMissing: required.filter((s) => s.glassExpected && !s.glassFilter).map((s) => s.label)
     },
     outline: shell ? outline(shell, 2, { n: 45 }) : outline(document.body, 2, { n: 30 })
   };
