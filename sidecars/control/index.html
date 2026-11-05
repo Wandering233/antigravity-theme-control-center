@@ -1313,7 +1313,10 @@
         let state = "未匹配";
         if (s.present) {
           if (s.collapsed) { cls = "warn"; state = "已收起，跳过"; }
-          else if (!s.applied) { cls = "bad"; state = "命中但布局未生效"; }
+          else if (!s.applied) {
+            cls = s.optional ? "warn" : "bad";
+            state = s.optional ? "未生效（可选）" : "命中但布局未生效";
+          }
           else if (s.glassExpected && !s.glassFilter) {
             cls = "warn";
             state = "布局已应用，但未检测到材质滤镜";

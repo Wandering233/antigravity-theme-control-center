@@ -837,9 +837,9 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质一：输入框主体卡片 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
 :root:not([data-ag-material="liquid"]) .surface-composer-card,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
 [data-ag-material="frosted"] .surface-composer-card,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div {
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
   background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.55)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
@@ -852,12 +852,12 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 :root:not([data-ag-material="liquid"]) .surface-composer-card:hover,
 :root:not([data-ag-material="liquid"]) .surface-composer-card:focus-within,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:hover,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:focus-within,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within,
 [data-ag-material="frosted"] .surface-composer-card:hover,
 [data-ag-material="frosted"] .surface-composer-card:focus-within,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:hover,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:focus-within {
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within {
   background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.7)) !important;
   border-color: rgba(255, 255, 255, 0.95) !important;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
@@ -865,13 +865,13 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质一：输入框主体卡片 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 深色模式 */
 :root:not([data-ag-material="liquid"]) body.theme-dark .surface-composer-card,
-:root:not([data-ag-material="liquid"]) body.theme-dark #antigravity\.agentSidePanelInputBox > div,
+:root:not([data-ag-material="liquid"]) body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
 :root:not([data-ag-material="liquid"]) body:not(.theme-light) .surface-composer-card,
-:root:not([data-ag-material="liquid"]) body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
 [data-ag-material="frosted"] body.theme-dark .surface-composer-card,
-[data-ag-material="frosted"] body.theme-dark #antigravity\.agentSidePanelInputBox > div,
+[data-ag-material="frosted"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
 [data-ag-material="frosted"] body:not(.theme-light) .surface-composer-card,
-[data-ag-material="frosted"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div {
+[data-ag-material="frosted"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
   background: rgba(20, 24, 34, calc(var(--ag-glass-opacity, 0.65) * 0.75)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
@@ -896,7 +896,7 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质二：输入框主体卡片 - 苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
 [data-ag-material="liquid"] .surface-composer-card,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div {
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.75)) 0%,
@@ -921,8 +921,8 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 [data-ag-material="liquid"] .surface-composer-card:hover,
 [data-ag-material="liquid"] .surface-composer-card:focus-within,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:hover,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:focus-within {
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.85)) 0%,
@@ -940,9 +940,9 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质二：输入框主体卡片 - 苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div {
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.5)) 0%,
@@ -966,12 +966,12 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card:hover,
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card:focus-within,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:hover,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:focus-within,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within,
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:hover,
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:focus-within,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:hover,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:focus-within {
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.6)) 0%,

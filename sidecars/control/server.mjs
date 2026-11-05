@@ -50,6 +50,16 @@ const DEFAULT_CONFIG = {
   }
 };
 
+// 行级相似度：判断 custom.css 是不是随包样式的旧副本
+function lineSimilarity(a, b) {
+  const la = a.split("\n").map((v) => v.trim()).filter(Boolean);
+  if (!la.length) return 1;
+  const lb = new Set(b.split("\n").map((v) => v.trim()).filter(Boolean));
+  let hit = 0;
+  for (const line of la) if (lb.has(line)) hit++;
+  return hit / la.length;
+}
+
 // 解析"实际生效"的样式表：随包基底 + 用户覆盖，并说明用的是哪一份
 async function resolveEffectiveCSS() {
   let baseCSS = "";
@@ -94,6 +104,11 @@ async function resolveEffectiveCSS() {
     // custom.css 只是随包样式的旧副本（纯前缀 / CRLF 差异）→ 视为未自定义
     css = baseCSS; source = "theme.default.css (bundled)"; mode = "stale-copy";
     console.log("[Sidecar] custom.css 是随包样式的旧副本，改用新版内置样式");
+  } else if (lineSimilarity(nu, nb) >= 0.9) {
+    // 随包样式改了若干行（例如修正选择器）也会让"前缀"判断失效，
+    // 用行级相似度兜住：仍认为是旧副本，避免把两份样式叠加注入
+    css = baseCSS; source = "theme.default.css (bundled)"; mode = "stale-copy-similar";
+    console.log("[Sidecar] custom.css 与随包样式高度重合（旧副本），改用新版内置样式");
   } else {
     css = baseCSS + "\n\n/* ===================== user custom.css overrides ===================== */\n" + userCSS;
     source = "theme.default.css + custom.css"; mode = "stacked";
