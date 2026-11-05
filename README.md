@@ -98,11 +98,45 @@ theme-control-center/
 │   └── control/
 │       ├── index.html
 │       ├── server.mjs
+│       ├── theme.default.css   # bundled base stylesheet
 │       └── sidecar.json
 ├── .gitignore
 ├── LICENSE
 └── README.md
 ```
+
+## Safety: Pre-flight Compatibility Check
+
+Injection is gated rather than best-effort:
+
+1. **Pre-flight** — probes required host anchors (`#root` / `.agy-shell`, `head`, left sidebar) plus optional ones (chat viewport, composer, Auxiliary Pane). Nothing is written at this stage.
+2. **Refusal** — if a required anchor is missing, `POST /api/inject` returns `409` with the failing checks and no styles are applied.
+3. **Post-check** — verifies the injected stylesheet is non-empty and that the wallpaper layer is `position: fixed` / `z-index: -99999` / `pointer-events: none`; any mismatch triggers a full eject.
+4. **Visibility** — the control panel renders the checklist live with a "Re-check" button; `GET /api/diagnose` exposes the same result.
+
+When an Antigravity update changes the DOM, the plugin refuses to inject instead of breaking the UI.
+
+## Wallpaper & Local Files
+
+- Colour extraction uses `fetch` → `blob` → `objectURL` and deliberately avoids `crossOrigin`, which is rejected from the `plugin://` origin.
+- "Choose local file" calls `POST /api/pick`, which opens a native dialog (`zenity`) and returns an absolute path — a browser file input only exposes the basename.
+- Falls back to a built-in file browser (`GET /api/browse`) when no native dialog is available.
+- Load failures report the actual reason (`404` missing, `403` unreadable, decode failure).
+
+## API
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/status` | Runtime state and current config |
+| GET | `/api/diagnose` | Run the compatibility probe without injecting |
+| POST | `/api/inject` | Pre-flight → inject → verify; rolls back on failure (`409` if incompatible) |
+| POST | `/api/eject` | Safely remove injected styles |
+| GET/POST | `/api/config` | Read or write the persisted config |
+| POST | `/api/theme-change` | Apply config live (debounced save) |
+| GET | `/api/media?file=` | Media stream with HTTP Range support |
+| GET | `/api/media-info?file=` | Pre-flight media check (exists / readable / MIME / reason) |
+| POST | `/api/pick` | Native file dialog, returns an absolute path |
+| GET | `/api/browse?dir=` | Directory listing of images and videos |
 
 ## License
 

@@ -1,8 +1,9 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, stat, mkdir } from "node:fs/promises";
-import { createReadStream, existsSync, watch } from "node:fs";
-import { join, dirname, extname } from "node:path";
+import { readFile, writeFile, stat, mkdir, readdir, access } from "node:fs/promises";
+import { constants as FS_CONSTANTS, createReadStream, existsSync, watch } from "node:fs";
+import { join, dirname, extname, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
 import os from "node:os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -11,6 +12,7 @@ const CDP_PORT = Number(process.env.ANTIGRAVITY_CDP_PORT || 39888);
 const CONFIG_DIR = join(os.homedir(), ".gemini/config/custom-ui");
 const CONFIG_FILE = join(CONFIG_DIR, "theme-config.json");
 const CSS_FILE = join(CONFIG_DIR, "custom.css");
+const DEFAULT_CSS_FILE = join(__dirname, "theme.default.css");
 const SIDECAR_INFO_FILE = join(CONFIG_DIR, "sidecar-info.json");
 
 const DEFAULT_CONFIG = {
@@ -37,15 +39,41 @@ const DEFAULT_CONFIG = {
     }
   },
   wallpaper: {
-    enabled: true,
+    enabled: false,
     type: "image",
-    url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1920&q=80",
+    url: "",
     blur: 0,
     brightness: 1,
     dim: 0.1,
     fit: "cover"
   }
 };
+
+async function getEffectiveCSS() {
+  let baseCSS = "";
+  if (existsSync(DEFAULT_CSS_FILE)) {
+    try {
+      baseCSS = await readFile(DEFAULT_CSS_FILE, "utf8");
+    } catch (e) {
+      console.warn("[Sidecar] Error reading bundled theme.default.css:", e);
+    }
+  }
+
+  let userCSS = "";
+  if (existsSync(CSS_FILE)) {
+    try {
+      userCSS = await readFile(CSS_FILE, "utf8");
+    } catch (e) {}
+  } else if (baseCSS) {
+    try {
+      if (!existsSync(CONFIG_DIR)) await mkdir(CONFIG_DIR, { recursive: true });
+      await writeFile(CSS_FILE, baseCSS, "utf8");
+      console.log("[Sidecar] Auto-initialized custom.css from bundled template");
+    } catch (e) {}
+  }
+
+  return userCSS || baseCSS;
+}
 
 async function getOrCreateConfig() {
   try {
@@ -60,6 +88,20 @@ async function getOrCreateConfig() {
     console.error("[Sidecar] Error reading config, fallback to default:", e);
   }
   return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+}
+
+// 局部传入的配置与已存配置深合并，避免一次只带 injection 的调用把用户设置整体覆盖掉
+function deepMerge(base, patch) {
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return base;
+  const out = { ...(base && typeof base === "object" ? base : {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v && typeof v === "object" && !Array.isArray(v) && out[k] && typeof out[k] === "object" && !Array.isArray(out[k])) {
+      out[k] = deepMerge(out[k], v);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
 }
 
 async function saveConfig(cfg) {
@@ -227,7 +269,7 @@ class CdpEngine {
   }
 
   async evaluate(fn, ...args) {
-    const helperCode = `${hostDomApply.toString()};\n${hostDomEject.toString()};\n${hostDomGetState.toString()};\n`;
+    const helperCode = `${hostDomProbe.toString()};\n${hostDomApply.toString()};\n${hostDomEject.toString()};\n${hostDomGetState.toString()};\n`;
     const expr = `(() => {\n${helperCode}\nreturn (${fn.toString()})(${args.map(a => JSON.stringify(a)).join(",")});\n})()`;
     const res = await this.call("Runtime.evaluate", {
       expression: expr,
@@ -246,23 +288,145 @@ const cdp = new CdpEngine(CDP_PORT);
 // ========================================================
 // 宿主 DOM 注入与操作函数（通过 CDP 在主窗口中执行）
 // ========================================================
+// ========================================================
+// 宿主 DOM 兼容性巡检
+// 注入前必须先通过巡检；任何必需项缺失都直接终止注入，绝不做"尽力而为"的破坏性写入。
+// 返回结构化结果，供 UI 展示与用户决策。
+// ========================================================
+function hostDomProbe() {
+  const checks = [];
+  const add = (id, label, ok, required, detail) => {
+    checks.push({ id, label, ok: !!ok, required: !!required, detail: detail || "" });
+  };
+
+  // 1. 根节点
+  let root = null;
+  let rootHow = "";
+  if (document.getElementById("root")) { root = document.getElementById("root"); rootHow = "#root"; }
+  else if (document.querySelector(".agy-shell")) { root = document.querySelector(".agy-shell"); rootHow = ".agy-shell"; }
+  else if (document.body) { root = document.body; rootHow = "body(fallback)"; }
+  add("root", "应用根节点", root, true, root ? rootHow : "未找到 #root / .agy-shell / body");
+
+  // 2. 可写样式容器
+  const styleHost = document.head || document.documentElement;
+  add("style-host", "样式挂载点 (head)", !!styleHost, true, styleHost ? styleHost.tagName.toLowerCase() : "不可用");
+
+  // 3. 左侧边栏容器
+  const leftSidebar =
+    document.querySelector(".agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child") ||
+    document.querySelector("[data-testid='conversation-list-sidebar']") ||
+    document.querySelector("[data-testid='sidebar']") ||
+    document.querySelector("[data-testid='left-sidebar']") ||
+    document.querySelector("div[style*='clamp(256px']");
+  add("left-sidebar", "左侧边栏容器", leftSidebar, true,
+    leftSidebar
+      ? "已匹配"
+      : "官方 DOM 结构可能已变更，或当前不在主对话界面（请回到主界面后点『重新校验』）");
+
+  // 4. 对话滚动视口（仅影响滚动遮罩，不阻塞注入）
+  const viewport = document.querySelector("[data-testid='autoscroll-viewport']");
+  add("chat-viewport", "对话滚动视口", viewport, false,
+    viewport ? "已匹配" : "缺失，仅滚动淡出遮罩失效");
+
+  // 5. 输入栏 composer（仅影响输入栏材质，不阻塞注入）
+  const composer =
+    document.querySelector("[data-testid='composer']") ||
+    document.querySelector("textarea") ||
+    document.querySelector("[contenteditable='true']");
+  add("composer", "输入栏 composer", composer, false,
+    composer ? "已匹配" : "未匹配到输入栏");
+
+  // 6. 右侧边栏 / Auxiliary Pane（可选）
+  const aux =
+    document.querySelector("[data-testid='sidecar-iframe-slot']") ||
+    document.querySelector("[data-testid='aux-pane-sash']") ||
+    document.querySelector("[data-testid='toggle-aux-sidebar']") ||
+    document.querySelector("[data-testid='auxiliary-pane']") ||
+    document.querySelector(".auxiliary-pane");
+  add("aux-pane", "右侧边栏 (Auxiliary Pane)", aux, false,
+    aux ? "已匹配" : "未匹配（可选，仅影响侧栏材质）");
+
+  const failed = checks.filter((c) => c.required && !c.ok);
+
+  return {
+    ok: failed.length === 0,
+    injected: !!document.getElementById("ag-user-theme"),
+    wallpaperLayer: !!document.getElementById("ag-wallpaper-container"),
+    checks,
+    failed: failed.map((c) => c.label),
+    hostTitle: (document.title || "").slice(0, 120),
+    origin: (typeof location !== "undefined" ? location.origin : ""),
+    ts: Date.now()
+  };
+}
+
 function hostDomInject(userCSS, config, sidecarPort) {
-  const root = document.getElementById("root") || document.querySelector(".agy-shell") || document.body;
-  if (!root) {
-    throw new Error("宿主界面尚未就绪或 DOM 根节点不可访问");
-  }
+  try {
+    // ── 注入前闸门：兼容性巡检 ──
+    const probe = hostDomProbe();
+    if (!probe.ok) {
+      throw new Error(
+        "宿主 DOM 兼容性校验未通过，已终止注入：" + probe.failed.join("、") +
+        "（官方界面可能已更新，请等待插件适配）"
+      );
+    }
 
-  let el = document.getElementById("ag-user-theme");
-  if (!el) {
-    el = document.createElement("style");
-    el.id = "ag-user-theme";
-    (document.head || document.documentElement).appendChild(el);
-  }
-  el.textContent = userCSS;
+    const root = document.getElementById("root") || document.querySelector(".agy-shell") || document.body;
+    if (!root) {
+      throw new Error("宿主界面尚未就绪或 DOM 根节点不可访问");
+    }
 
-  // Apply theme config
-  hostDomApply(config, sidecarPort);
-  return { success: true };
+    let el = document.getElementById("ag-user-theme");
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "ag-user-theme";
+      (document.head || document.documentElement).appendChild(el);
+    }
+    el.textContent = userCSS;
+
+    // Apply theme config（内部任何异常都会冒泡到下面的 catch）
+    hostDomApply(config, sidecarPort);
+
+    // ── 注入后校验：确认真的挂上了 ──
+    const applied = document.getElementById("ag-user-theme");
+    if (!applied) {
+      throw new Error("样式表挂载校验失败：#ag-user-theme 未挂载");
+    }
+    const expectedLen = (userCSS || "").length;
+    const actualLen = (applied.textContent || "").length;
+    if (expectedLen > 0 && actualLen !== expectedLen) {
+      throw new Error(`样式表挂载校验失败：期望 ${expectedLen} 字符，实际 ${actualLen} 字符`);
+    }
+
+    const wp = config && config.wallpaper;
+    const wallpaperOn = !!(wp && wp.enabled && wp.type && wp.type !== "none");
+    if (wallpaperOn) {
+      const container = document.getElementById("ag-wallpaper-container");
+      if (!container) {
+        throw new Error("壁纸层校验失败：#ag-wallpaper-container 未创建");
+      }
+      const cs = getComputedStyle(container);
+      if (cs.position !== "fixed" || cs.pointerEvents !== "none" || cs.zIndex !== "-99999") {
+        throw new Error(
+          `壁纸层校验失败：position=${cs.position} pointer-events=${cs.pointerEvents} z-index=${cs.zIndex}`
+        );
+      }
+    }
+
+    return {
+      success: true,
+      verified: {
+        styleChars: actualLen,
+        wallpaperLayer: wallpaperOn,
+        injected: true
+      },
+      probe
+    };
+  } catch (err) {
+    // 失败必须干净回滚，不留半套样式
+    try { hostDomEject(); } catch (e) {}
+    throw err;
+  }
 }
 
 function hostDomApply(config, sidecarPort) {
@@ -285,6 +449,14 @@ function hostDomApply(config, sidecarPort) {
     const fBlur = frosted.blur !== undefined ? frosted.blur : (f.blur !== undefined ? f.blur : 24);
     docStyle.setProperty("--ag-glass-opacity", `${fOpacity}`);
     docStyle.setProperty("--ag-glass-blur", `${fBlur}px`);
+
+    // 兼容社区常见毛玻璃主题变量规范 (如 AreSet01/antigravity-theme 等)
+    docStyle.setProperty("--glass-blur", `${fBlur}px`);
+    docStyle.setProperty("--glass-alpha", `${fOpacity}`);
+    docStyle.setProperty("--glass-opacity", `${fOpacity}`);
+    docStyle.setProperty("--glass-radius", `${f.radius}px`);
+    docStyle.setProperty("--gutter", `${f.gutter}px`);
+    docStyle.setProperty("--sidebar-blur", `${fBlur}px`);
 
     const liquid = f.liquid || {};
     const lOpacity = liquid.opacity !== undefined ? liquid.opacity : 0.35;
@@ -351,8 +523,41 @@ function hostDomApply(config, sidecarPort) {
       }
     }
 
+    // 防御性内联样式：确保背景壁纸永远沉在最底层，绝不会阻挡或遮盖操作界面
+    container.style.cssText = "position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: -99999 !important; pointer-events: none !important; overflow: hidden !important; background: transparent !important;";
+
     const img = document.getElementById("ag-wallpaper-img");
     const video = document.getElementById("ag-wallpaper-video");
+    const overlay = document.getElementById("ag-wallpaper-overlay");
+
+    if (img) {
+      img.style.position = "absolute";
+      img.style.top = "0";
+      img.style.left = "0";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = wp.fit || "cover";
+      img.style.filter = `blur(${wp.blur || 0}px) brightness(${wp.brightness ?? 1})`;
+      img.style.transform = "scale(1.05)";
+    }
+
+    if (video) {
+      video.style.position = "absolute";
+      video.style.top = "0";
+      video.style.left = "0";
+      video.style.width = "100%";
+      video.style.height = "100%";
+      video.style.objectFit = wp.fit || "cover";
+      video.style.filter = `blur(${wp.blur || 0}px) brightness(${wp.brightness ?? 1})`;
+      video.style.transform = "scale(1.05)";
+    }
+
+    if (overlay) {
+      overlay.style.position = "absolute";
+      overlay.style.inset = "0";
+      overlay.style.pointerEvents = "none";
+      overlay.style.background = `rgba(0, 0, 0, ${wp.dim ?? 0.1})`;
+    }
 
     function resolveMediaUrl(rawUrl) {
       if (!rawUrl) return "";
@@ -460,6 +665,160 @@ const MIME_TYPES = {
 
 let debouncedSaveTimer = null;
 
+// ========================================================
+// 媒体文件检查 / 本地文件选择 / 目录浏览
+// ========================================================
+
+const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif", ".svg"]);
+const VIDEO_EXT = new Set([".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi", ".ogv"]);
+
+function normalizeLocalPath(raw) {
+  if (!raw) return "";
+  let p = String(raw).trim();
+  if (p.startsWith("file://")) {
+    try { p = decodeURIComponent(p.slice(7)); } catch { p = p.slice(7); }
+  }
+  if (p.startsWith("~")) p = join(os.homedir(), p.slice(1));
+  return p;
+}
+
+async function checkMediaFile(rawPath) {
+  const filePath = normalizeLocalPath(rawPath);
+  const out = { path: filePath, exists: false, readable: false, isFile: false, size: 0, mime: null, reason: "" };
+  if (!filePath) { out.reason = "路径为空"; return out; }
+  if (!filePath.startsWith(sep) && !/^[A-Za-z]:[\\/]/.test(filePath)) {
+    out.reason = "不是绝对路径";
+    return out;
+  }
+  out.exists = existsSync(filePath);
+  if (!out.exists) { out.reason = "文件不存在"; return out; }
+  try {
+    const st = await stat(filePath);
+    out.isFile = st.isFile();
+    out.size = st.size;
+    if (!out.isFile) { out.reason = "不是普通文件（可能是目录）"; return out; }
+  } catch (e) {
+    out.reason = "无法读取文件状态：" + e.message;
+    return out;
+  }
+  try {
+    access(filePath, FS_CONSTANTS.R_OK);
+    out.readable = true;
+  } catch (e) {
+    out.reason = "没有读取权限";
+    return out;
+  }
+  const ext = extname(filePath).toLowerCase();
+  out.mime = MIME_TYPES[ext] || null;
+  out.kind = IMAGE_EXT.has(ext) ? "image" : VIDEO_EXT.has(ext) ? "video" : "unknown";
+  if (out.size === 0) out.reason = "文件为空 (0 字节)";
+  return out;
+}
+
+// 用原生 GTK 对话框（zenity）取绝对路径 —— 浏览器 <input type=file> 拿不到完整路径
+function pickWithNativeDialog(kind) {
+  return new Promise((resolve) => {
+    const filters = kind === "video"
+      ? ["--file-filter=视频文件 | *.mp4 *.webm *.mov *.m4v *.mkv *.avi", "--file-filter=所有文件 | *"]
+      : ["--file-filter=图片文件 | *.jpg *.jpeg *.png *.webp *.gif *.bmp *.avif", "--file-filter=所有文件 | *"];
+
+    const args = [
+      "--file-selection",
+      `--title=${kind === "video" ? "选择动态壁纸视频" : "选择壁纸图片"}`,
+      "--filename=" + os.homedir() + "/",
+      ...filters
+    ];
+
+    let child;
+    try {
+      child = spawn("zenity", args, { stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) {
+      return resolve({ ok: false, code: "NO_DIALOG", error: "无法启动 zenity：" + e.message });
+    }
+
+    let out = "";
+    let errOut = "";
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; clearTimeout(timer); resolve(v); } };
+
+    const timer = setTimeout(() => {
+      try { child.kill("SIGTERM"); } catch (e) {}
+      done({ ok: false, code: "TIMEOUT", error: "对话框等待超时" });
+    }, 10 * 60 * 1000);
+
+    child.stdout.on("data", (d) => { out += d.toString(); });
+    child.stderr.on("data", (d) => { errOut += d.toString(); });
+
+    child.on("error", (e) => {
+      const noBin = e && e.code === "ENOENT";
+      done({
+        ok: false,
+        code: noBin ? "NO_DIALOG" : "DIALOG_FAILED",
+        error: noBin ? "系统未安装 zenity，改用内置文件浏览器" : e.message
+      });
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        const picked = out.trim();
+        if (!picked) return done({ ok: false, code: "CANCELLED" });
+        return done({ ok: true, path: picked });
+      }
+      if (code === 1) return done({ ok: false, code: "CANCELLED" });
+      done({
+        ok: false,
+        code: "DIALOG_FAILED",
+        error: (errOut.trim() || `zenity 退出码 ${code}`)
+      });
+    });
+  });
+}
+
+// 内置目录浏览器兜底（zenity 不可用 / 远程环境）
+async function listDirectory(rawDir) {
+  const target = normalizeLocalPath(rawDir) || os.homedir();
+  const dir = resolvePath(target);
+  let st;
+  try {
+    st = await stat(dir);
+  } catch (e) {
+    const err = new Error(e.code === "ENOENT" ? "目录不存在：" + dir
+      : e.code === "EACCES" ? "没有访问权限：" + dir
+      : "无法读取目录：" + e.message);
+    err.status = e.code === "ENOENT" ? 404 : e.code === "EACCES" ? 403 : 500;
+    throw err;
+  }
+  if (!st.isDirectory()) {
+    const err = new Error("不是目录：" + dir);
+    err.status = 400;
+    throw err;
+  }
+  const entries = await readdir(dir, { withFileTypes: true });
+  const dirs = [];
+  const files = [];
+  for (const e of entries) {
+    if (e.name.startsWith(".")) continue;
+    const full = join(dir, e.name);
+    if (e.isDirectory()) {
+      dirs.push({ name: e.name, path: full, type: "dir" });
+    } else if (e.isFile()) {
+      const ext = extname(e.name).toLowerCase();
+      const kind = IMAGE_EXT.has(ext) ? "image" : VIDEO_EXT.has(ext) ? "video" : null;
+      if (!kind) continue;
+      files.push({ name: e.name, path: full, type: kind });
+    }
+  }
+  dirs.sort((a, b) => a.name.localeCompare(b.name, "zh"));
+  files.sort((a, b) => a.name.localeCompare(b.name, "zh"));
+  const parent = dirname(dir);
+  return {
+    dir,
+    parent: parent === dir ? null : parent,
+    home: os.homedir(),
+    entries: [...dirs, ...files]
+  };
+}
+
 const server = createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -494,27 +853,45 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // API: Inject theme via CDP
+  // API: Inject theme via CDP（先巡检 → 再注入 → 再验证；任一环节失败即回滚并报错）
   if (url.pathname === "/api/inject" && req.method === "POST") {
     let body = "";
     req.on("data", chunk => body += chunk);
     req.on("end", async () => {
+      let probe = null;
       try {
-        const payload = body ? JSON.parse(body) : await getOrCreateConfig();
-        const cfg = payload.config || payload;
+        const stored = await getOrCreateConfig();
+        const payload = body ? JSON.parse(body) : stored;
+        // 与已存配置合并：部分字段的调用（如只带 injection）不再清空壁纸/悬浮设置
+        const cfg = deepMerge(stored, payload.config || payload);
 
-        // Ensure custom.css exists
-        let userCSS = "";
-        if (existsSync(CSS_FILE)) {
-          userCSS = await readFile(CSS_FILE, "utf8");
-        }
+        // Load bundled base CSS + optional user custom overrides
+        const userCSS = await getEffectiveCSS();
 
         const cdpOk = await cdp.connect();
         if (!cdpOk) {
           throw new Error(`无法连接到 Antigravity 宿主调试端口 (${cdp.port})。请使用官方包装器启动或附带 --remote-debugging-port=${cdp.port}`);
         }
 
-        await cdp.evaluate(hostDomInject, userCSS, cfg, PORT);
+        // ── 步骤 1：注入前兼容性巡检（不写任何东西） ──
+        probe = await cdp.evaluate(hostDomProbe);
+        if (!probe || !probe.ok) {
+          const failedLabels = (probe && probe.failed && probe.failed.length)
+            ? probe.failed.join("、")
+            : "宿主 respond 异常";
+          const err = new Error(`兼容性校验未通过，已取消注入：${failedLabels}`);
+          err.code = "COMPAT_FAILED";
+          err.checks = (probe && probe.checks) || [];
+          throw err;
+        }
+
+        // ── 步骤 2：注入（页面内还有一道闸门与注入后自检） ──
+        const result = await cdp.evaluate(hostDomInject, userCSS, cfg, PORT);
+        if (!result || !result.success) {
+          const err = new Error("注入执行未返回成功状态");
+          err.code = "INJECT_FAILED";
+          throw err;
+        }
 
         cfg.injection = cfg.injection || {};
         cfg.injection.enabled = true;
@@ -522,7 +899,12 @@ const server = createServer(async (req, res) => {
         await saveConfig(cfg);
 
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: true, isInjected: true }));
+        res.end(JSON.stringify({
+          success: true,
+          isInjected: true,
+          verified: result.verified || null,
+          checks: (result.probe && result.probe.checks) || probe.checks
+        }));
       } catch (err) {
         console.error("[CDP Inject Error]:", err);
         try {
@@ -539,10 +921,41 @@ const server = createServer(async (req, res) => {
           await saveConfig(cfg);
         } catch (e) {}
 
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: err.message }));
+        const status = err.code === "COMPAT_FAILED" ? 409 : 500;
+        res.writeHead(status, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          success: false,
+          error: err.message,
+          code: err.code || "INJECT_ERROR",
+          checks: err.checks || (probe && probe.checks) || []
+        }));
       }
     });
+    return;
+  }
+
+  // API: 只做兼容性巡检，不注入（供 UI 预检与"重新校验"）
+  if (url.pathname === "/api/diagnose" && req.method === "GET") {
+    try {
+      const cdpOk = await cdp.connect();
+      if (!cdpOk) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          connected: false,
+          ok: false,
+          error: `无法连接宿主 CDP 端口 ${cdp.port}`,
+          checks: []
+        }));
+        return;
+      }
+      const probe = await cdp.evaluate(hostDomProbe);
+      const hostState = await cdp.evaluate(hostDomGetState).catch(() => null);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ connected: true, ...probe, hostState }));
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ connected: cdp.connected, ok: false, error: err.message, checks: [] }));
+    }
     return;
   }
 
@@ -621,12 +1034,69 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // API: 媒体文件预检（不读内容，只回答"能不能加载"以及为什么）
+  if (url.pathname === "/api/media-info" && req.method === "GET") {
+    const info = await checkMediaFile(url.searchParams.get("file"));
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify(info));
+    return;
+  }
+
+  // API: 原生文件选择对话框（返回绝对路径）
+  if (url.pathname === "/api/pick" && req.method === "POST") {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", async () => {
+      let kind = "image";
+      try { kind = (JSON.parse(body || "{}").kind) || "image"; } catch (e) {}
+      const result = await pickWithNativeDialog(kind);
+      const status = result.ok ? 200 : (result.code === "CANCELLED" ? 200 : 501);
+      if (result.ok) {
+        const info = await checkMediaFile(result.path);
+        result.info = info;
+        if (!info.exists || !info.readable) {
+          result.ok = false;
+          result.code = "BAD_FILE";
+          result.error = info.reason || "所选文件不可用";
+        }
+      }
+      res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(result));
+    });
+    return;
+  }
+
+  // API: 目录浏览（内置浏览器兜底）
+  if (url.pathname === "/api/browse" && req.method === "GET") {
+    try {
+      const listing = await listDirectory(url.searchParams.get("dir") || os.homedir());
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ ok: true, ...listing }));
+    } catch (err) {
+      res.writeHead(err.status || 500, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+    return;
+  }
+
   // API: Stream local video / image media file
   if (url.pathname === "/api/media" && req.method === "GET") {
-    const filePath = url.searchParams.get("file");
-    if (!filePath || !existsSync(filePath)) {
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("Media not found");
+    const filePath = normalizeLocalPath(url.searchParams.get("file"));
+    const info = await checkMediaFile(filePath);
+
+    if (!info.exists || !info.isFile || !info.readable) {
+      const status = !info.exists ? 404 : (!info.isFile ? 400 : 403);
+      res.writeHead(status, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store"
+      });
+      res.end(JSON.stringify({
+        error: info.reason || "无法读取媒体文件",
+        path: filePath,
+        exists: info.exists,
+        readable: info.readable,
+        isFile: info.isFile
+      }));
       return;
     }
 
@@ -640,14 +1110,20 @@ const server = createServer(async (req, res) => {
         const parts = range.replace(/bytes=/, "").split("-");
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
-        const chunksize = end - start + 1;
+        if (Number.isNaN(start) || start >= stats.size || start < 0) {
+          res.writeHead(416, { "Content-Range": `bytes */${stats.size}` });
+          res.end();
+          return;
+        }
+        const safeEnd = Math.min(end, stats.size - 1);
+        const chunksize = safeEnd - start + 1;
         res.writeHead(206, {
-          "Content-Range": `bytes ${start}-${end}/${stats.size}`,
+          "Content-Range": `bytes ${start}-${safeEnd}/${stats.size}`,
           "Accept-Ranges": "bytes",
           "Content-Length": chunksize,
           "Content-Type": mime
         });
-        createReadStream(filePath, { start, end }).pipe(res);
+        createReadStream(filePath, { start, end: safeEnd }).pipe(res);
       } else {
         res.writeHead(200, {
           "Content-Length": stats.size,
@@ -657,8 +1133,8 @@ const server = createServer(async (req, res) => {
         createReadStream(filePath).pipe(res);
       }
     } catch (e) {
-      res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end("Stream error: " + e.message);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "读取失败：" + e.message, path: filePath }));
     }
     return;
   }
@@ -711,10 +1187,7 @@ setInterval(async () => {
       if (ok) {
         const state = await cdp.evaluate(hostDomGetState);
         if (!state?.isInjected) {
-          let userCSS = "";
-          if (existsSync(CSS_FILE)) {
-            userCSS = await readFile(CSS_FILE, "utf8");
-          }
+          const userCSS = await getEffectiveCSS();
           await cdp.evaluate(hostDomInject, userCSS, cfg, PORT);
           console.log("[CDP] Re-injected theme into refreshed host window");
         }
@@ -733,10 +1206,7 @@ server.listen(PORT, "127.0.0.1", async () => {
     try {
       const cdpOk = await cdp.connect();
       if (cdpOk && cfg.injection && cfg.injection.enabled === true) {
-        let userCSS = "";
-        if (existsSync(CSS_FILE)) {
-          userCSS = await readFile(CSS_FILE, "utf8");
-        }
+        const userCSS = await getEffectiveCSS();
         await cdp.evaluate(hostDomInject, userCSS, cfg, PORT);
         console.log("[CDP] Automatically restored theme injection on startup");
       }

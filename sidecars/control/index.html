@@ -421,6 +421,82 @@
       pointer-events: none;
       transition: opacity 0.25s ease;
     }
+
+    /* ===== 内置文件浏览器（原生对话框兜底） ===== */
+    .browse-mask {
+      position: fixed; inset: 0; z-index: 9999;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    }
+    .browse-mask.open { display: flex; }
+    .browse-panel {
+      width: min(580px, 92vw); max-height: 78vh;
+      display: flex; flex-direction: column;
+      background: rgba(28, 28, 30, 0.94); color: #f3f4f6;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+    }
+    .browse-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; font-weight: 600; font-size: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .browse-close {
+      background: transparent; border: none; color: inherit;
+      font-size: 20px; line-height: 1; cursor: pointer; opacity: 0.7;
+    }
+    .browse-close:hover { opacity: 1; }
+    .browse-path {
+      padding: 8px 16px; font-size: 12px; color: #94a3b8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .browse-list { flex: 1; overflow-y: auto; padding: 6px; min-height: 180px; }
+    .browse-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px;
+    }
+    .browse-row:hover { background: rgba(255, 255, 255, 0.09); }
+    .browse-tag {
+      flex: 0 0 auto; font-size: 10px; padding: 2px 6px; border-radius: 6px;
+      background: rgba(255, 255, 255, 0.12); color: #cbd5e1;
+    }
+    .browse-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .browse-empty { padding: 24px 12px; text-align: center; font-size: 13px; color: #94a3b8; }
+    .browse-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 16px; border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .browse-hint { font-size: 12px; color: #ef4444; flex: 1; }
+
+    /* ===== 注入前兼容性巡检清单 ===== */
+    .compat-list { margin-top: 10px; display: none; flex-direction: column; gap: 5px; }
+    .compat-list.open { display: flex; }
+    .compat-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 12px; line-height: 1.45; color: var(--text-muted);
+    }
+    .compat-dot {
+      flex: 0 0 auto; width: 7px; height: 7px; margin-top: 5px;
+      border-radius: 50%; background: #64748b;
+    }
+    .compat-item.ok .compat-dot { background: #22c55e; }
+    .compat-item.bad .compat-dot { background: #ef4444; }
+    .compat-item.warn .compat-dot { background: #f59e0b; }
+    .compat-item.bad { color: #f87171; font-weight: 600; }
+    .compat-tail {
+      margin-top: 8px; font-size: 11px; color: var(--text-muted);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .compat-recheck {
+      background: transparent; border: 1px solid var(--card-border);
+      color: var(--text-muted); border-radius: 8px; padding: 3px 10px;
+      font-size: 11px; cursor: pointer;
+    }
+    .compat-recheck:hover { color: var(--text); border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -440,6 +516,11 @@
     </div>
     <div class="hook-desc" id="hook-desc">
       当前处于安全模式。未加载悬浮卡片、毛玻璃透光与壁纸层。点击下方按钮通过安全检测后注入。
+    </div>
+    <div class="compat-list" id="compat-list"></div>
+    <div class="compat-tail" id="compat-tail" style="display:none;">
+      <button class="compat-recheck" id="btn-recheck">重新校验</button>
+      <span id="compat-summary"></span>
     </div>
     <div class="hook-btn-row">
       <button class="btn-primary" id="btn-inject">注入以启用增强控制</button>
@@ -597,8 +678,8 @@
         <div class="text-input-wrap">
           <input type="text" class="text-input" id="input-wallpaper-url" placeholder="输入绝对路径 (如 /home/...) 或在线 URL" />
           <button class="file-btn" id="btn-choose-file">选择本地文件</button>
-          <input type="file" id="file-picker" style="display:none;" accept="image/*,video/*">
         </div>
+        <div id="wallpaper-error-msg" style="display:none; margin-top:6px; font-size:12px; color:#ef4444; line-height:1.4;"></div>
       </div>
 
       <!-- 壁纸渲染滤镜调节 -->
@@ -628,7 +709,23 @@
     </div>
   </div>
 
-  <script>
+  
+  <!-- 内置文件浏览器（原生对话框不可用时的兜底） -->
+  <div class="browse-mask" id="browse-mask">
+    <div class="browse-panel">
+      <div class="browse-head">
+        <span>选择壁纸文件</span>
+        <button class="browse-close" id="browse-close" aria-label="关闭">×</button>
+      </div>
+      <div class="browse-path" id="browse-path">—</div>
+      <div class="browse-list" id="browse-list"></div>
+      <div class="browse-foot">
+        <span class="browse-hint" id="browse-hint"></span>
+        <button class="btn-secondary" id="browse-up">上级目录</button>
+      </div>
+    </div>
+  </div>
+<script>
     // State
     const state = {
       injection: {
@@ -656,9 +753,9 @@
         }
       },
       wallpaper: {
-        enabled: true,
+        enabled: false,
         type: "video",
-        url: "/home/jingxue/Videos/视频壁纸/星空と少女.mp4",
+        url: "",
         blur: 0,
         brightness: 1.0,
         dim: 0.1,
@@ -711,7 +808,6 @@
     const btnTypeNone = document.getElementById("btn-type-none");
     const inputWallpaperUrl = document.getElementById("input-wallpaper-url");
     const btnChooseFile = document.getElementById("btn-choose-file");
-    const filePicker = document.getElementById("file-picker");
     const sliderWpBlur = document.getElementById("slider-wp-blur");
     const valWpBlur = document.getElementById("val-wp-blur");
     const sliderWpBrightness = document.getElementById("slider-wp-brightness");
@@ -786,23 +882,101 @@
       if (md3StatusText) md3StatusText.innerText = `取色完成 (H:${h}° S:${s}%)`;
     }
 
-    function extractMd3ColorFromMedia(rawUrl, type) {
-      if (!rawUrl || type === 'none') {
+    function showWpError(msg) {
+      const el = document.getElementById("wallpaper-error-msg");
+      if (!el) return;
+      if (msg) { el.textContent = "⚠ " + msg; el.style.display = "block"; }
+      else { el.textContent = ""; el.style.display = "none"; }
+    }
+
+    // 把用户输入的本地路径 / URL / file:// 统一成可直接加载的地址
+    function resolveMediaSrc(rawUrl) {
+      if (!rawUrl) return "";
+      const u = String(rawUrl).trim();
+      if (/^(https?:|data:|blob:)/i.test(u)) return u;
+      let clean = u;
+      if (clean.startsWith("file://")) {
+        clean = clean.slice(7);
+        try { clean = decodeURIComponent(clean); } catch (e) {}
+      }
+      return "/api/media?file=" + encodeURIComponent(clean);
+    }
+
+    // 用 fetch 取字节，而不是把路径直接丢给 <img>.src：
+    //  1) 能拿到真实 HTTP 状态和后端给出的具体原因，报错不再靠猜
+    //  2) 避开 plugin:// 源下 crossOrigin 图片请求被拦截的问题 ——
+    //     这正是"路径完全正确却仍提示加载失败"的根因
+    //  3) blob: URL 与本页同源，canvas 不会被污染，getImageData 取色正常
+    async function fetchMediaBlob(url) {
+      let res;
+      try {
+        res = await fetch(url, { cache: "no-store" });
+      } catch (e) {
+        throw new Error("无法连接侧车服务（" + e.message + "）");
+      }
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const j = await res.json();
+          if (j) {
+            detail = j.error || "";
+            if (j.path && j.path !== j.error) detail += "：" + j.path;
+          }
+        } catch (e) {}
+        const hint = res.status === 404 ? "文件不存在"
+          : res.status === 403 ? "没有读取权限"
+          : res.status === 400 ? "不是有效文件"
+          : res.status === 416 ? "读取范围无效"
+          : "读取失败";
+        throw new Error(hint + " [HTTP " + res.status + "]" + (detail ? "：" + detail : ""));
+      }
+      const blob = await res.blob();
+      if (!blob || blob.size === 0) throw new Error("文件为空（0 字节）");
+      return blob;
+    }
+
+    function loadImageFromBlob(blob) {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const img = new Image();          // 注意：绝对不要设置 crossOrigin
+        img.onload = () => resolve({ img, objectUrl });
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("图像解码失败，格式不受支持")); };
+        img.src = objectUrl;
+      });
+    }
+
+    function loadVideoFromBlob(blob) {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const video = document.createElement("video");
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "auto";
+        video.onloadeddata = () => resolve({ video, objectUrl });
+        video.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("视频解码失败，格式不受支持")); };
+        video.src = objectUrl;
+      });
+    }
+
+    let md3Token = 0;
+    let md3LastKey = "";
+
+    async function extractMd3ColorFromMedia(rawUrl, type) {
+      const key = (rawUrl || "") + "|" + (type || "");
+      // 状态每 4 秒轮询一次，同一张壁纸不要反复下载取色
+      if (key === md3LastKey) return;
+
+      const token = ++md3Token;
+      showWpError("");
+      if (!rawUrl || type === "none") {
         applyMd3Theme(210, 75, 50);
         return;
       }
 
-      // Convert local path to media endpoint
-      let url = rawUrl;
-      if (rawUrl.startsWith('/') || rawUrl.startsWith('file://')) {
-        let clean = rawUrl.startsWith('file://') ? rawUrl.slice(7) : rawUrl;
-        url = `/api/media?file=${encodeURIComponent(clean)}`;
-      }
-
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = 64;
       canvas.height = 64;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
       function processPixels() {
         try {
@@ -855,34 +1029,43 @@
         }
       }
 
-      if (type === 'video') {
-        const video = document.createElement('video');
-        video.crossOrigin = 'anonymous';
-        video.muted = true;
-        video.src = url;
-        video.currentTime = 1;
-        video.onloadeddata = () => {
+      try {
+        const src = resolveMediaSrc(rawUrl);
+        const blob = await fetchMediaBlob(src);
+        if (token !== md3Token) return;
+
+        if (type === "video") {
+          const { video, objectUrl } = await loadVideoFromBlob(blob);
           try {
+            // 跳到中间取一帧，避免片头黑场导致取色发灰
+            video.currentTime = Math.min(1, (video.duration || 2) / 2);
+            await new Promise((res) => {
+              video.onseeked = res;
+              setTimeout(res, 1500);
+            });
+            if (token !== md3Token) return;
             ctx.drawImage(video, 0, 0, 64, 64);
             processPixels();
-          } catch(e) {
-            applyMd3Theme(210, 75, 50);
+            md3LastKey = key;
+          } finally {
+            URL.revokeObjectURL(objectUrl);
           }
-        };
-        video.onerror = () => applyMd3Theme(210, 75, 50);
-      } else {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = url;
-        img.onload = () => {
+        } else {
+          const { img, objectUrl } = await loadImageFromBlob(blob);
           try {
+            if (token !== md3Token) return;
             ctx.drawImage(img, 0, 0, 64, 64);
             processPixels();
-          } catch(e) {
-            applyMd3Theme(210, 75, 50);
+            md3LastKey = key;
+          } finally {
+            URL.revokeObjectURL(objectUrl);
           }
-        };
-        img.onerror = () => applyMd3Theme(210, 75, 50);
+        }
+      } catch (err) {
+        if (token !== md3Token) return;
+        md3LastKey = "";               // 失败不缓存，允许下次重试
+        applyMd3Theme(210, 75, 50);
+        showWpError("壁纸加载失败：" + err.message + "  ·  " + rawUrl);
       }
     }
 
@@ -1006,6 +1189,85 @@
     // ========================================================
     // CDP 免侵入全外置注入与撤销交互 (纯插件架构，免疫本体更新)
     // ========================================================
+    // ========================================================
+    // 注入前兼容性巡检：把宿主 DOM 的每一项检查结果摊开给用户看
+    // —— 任何必需项不通过就明确报错并禁止注入，而不是"尽力而为"地写进去
+    // ========================================================
+    const compatList = document.getElementById("compat-list");
+    const compatTail = document.getElementById("compat-tail");
+    const compatSummary = document.getElementById("compat-summary");
+    const btnRecheck = document.getElementById("btn-recheck");
+
+    function renderCompat(checks, opts) {
+      const options = opts || {};
+      compatList.innerHTML = "";
+      if (!checks || !checks.length) {
+        compatList.classList.remove("open");
+        compatTail.style.display = "none";
+        return;
+      }
+
+      let hardFail = 0;
+      let softMiss = 0;
+      for (const c of checks) {
+        const item = document.createElement("div");
+        const bad = !c.ok && c.required;
+        const warn = !c.ok && !c.required;
+        item.className = "compat-item " + (c.ok ? "ok" : bad ? "bad" : warn ? "warn" : "");
+        const dot = document.createElement("span");
+        dot.className = "compat-dot";
+        const text = document.createElement("span");
+        text.textContent = c.label + (c.detail ? "（" + c.detail + "）" : "");
+        item.appendChild(dot);
+        item.appendChild(text);
+        compatList.appendChild(item);
+        if (bad) hardFail++;
+        if (warn) softMiss++;
+      }
+
+      compatList.classList.add("open");
+      compatTail.style.display = "flex";
+      if (hardFail > 0) {
+        compatSummary.textContent = `${hardFail} 项必需检查未通过，注入已被禁止`;
+        compatSummary.style.color = "#f87171";
+      } else if (softMiss > 0) {
+        compatSummary.textContent = `必需项全部通过；${softMiss} 项可选能力缺失`;
+        compatSummary.style.color = "#f59e0b";
+      } else {
+        compatSummary.textContent = "全部检查通过，可以安全注入";
+        compatSummary.style.color = "#22c55e";
+      }
+      if (options.error) {
+        compatSummary.textContent = options.error;
+        compatSummary.style.color = "#f87171";
+      }
+    }
+
+    async function runDiagnose() {
+      try {
+        const res = await fetch("/api/diagnose", { cache: "no-store" });
+        const data = await res.json();
+        if (!data.connected) {
+          renderCompat([], {});
+          return data;
+        }
+        renderCompat(data.checks || []);
+        return data;
+      } catch (err) {
+        renderCompat([], {});
+        return null;
+      }
+    }
+
+    btnRecheck.onclick = async () => {
+      btnRecheck.disabled = true;
+      const old = btnRecheck.textContent;
+      btnRecheck.textContent = "校验中…";
+      await runDiagnose();
+      btnRecheck.textContent = old;
+      btnRecheck.disabled = false;
+    };
+
     btnInject.onclick = async () => {
       hookDesc.innerText = "正在通过 CDP 连接 Antigravity 宿主主窗口并安全校验与注入材质...";
       btnInject.disabled = true;
@@ -1020,9 +1282,11 @@
         if (data.success) {
           state.injection.enabled = true;
           state.injection.lastError = null;
+          renderCompat(data.checks || []);
         } else {
           state.injection.enabled = false;
           state.injection.lastError = data.error || "注入失败";
+          renderCompat(data.checks || [], { error: data.error });
         }
       } catch (err) {
         state.injection.enabled = false;
@@ -1177,22 +1441,145 @@
       emitChange();
     };
 
-    btnChooseFile.onclick = () => {
-      filePicker.click();
+    // 把选中的绝对路径写入状态并立即预览
+    function applyWallpaperPath(absPath) {
+      if (!absPath) return;
+      const lower = String(absPath).toLowerCase();
+      const vExts = [".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi", ".ogv"];
+      const isVideo = vExts.some((e) => lower.endsWith(e));
+
+      state.wallpaper.type = isVideo ? "video" : "image";
+      state.wallpaper.url = absPath;
+      state.wallpaper.enabled = true;
+
+      switchWallpaper.checked = true;
+      wallpaperControlsBody.className = "";
+      btnTypeVideo.classList.toggle("active", isVideo);
+      btnTypeImage.classList.toggle("active", !isVideo);
+      btnTypeNone.classList.remove("active");
+
+      inputWallpaperUrl.value = absPath;
+      extractMd3ColorFromMedia(absPath, state.wallpaper.type);
+      emitChange();
+    }
+
+    // 选择本地文件：走服务端原生对话框拿「绝对路径」
+    // （浏览器 <input type=file> 出于安全只能拿到文件名，无法用于宿主注入）
+    btnChooseFile.onclick = async () => {
+      const original = btnChooseFile.innerText;
+      btnChooseFile.disabled = true;
+      btnChooseFile.innerText = "打开中…";
+      let fallbackReason = "";
+      try {
+        const res = await fetch("/api/pick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: state.wallpaper.type === "video" ? "video" : "image" })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.ok && data.path) {
+          applyWallpaperPath(data.path);
+          return;
+        }
+        if (data.code === "CANCELLED") return;
+        fallbackReason = data.error || "原生对话框不可用";
+      } catch (e) {
+        fallbackReason = e.message;
+      } finally {
+        btnChooseFile.disabled = false;
+        btnChooseFile.innerText = original;
+      }
+      // 兜底：内置文件浏览器
+      openFileBrowser(fallbackReason);
     };
 
-    filePicker.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const isVideo = file.type.startsWith("video/");
-      state.wallpaper.type = isVideo ? "video" : "image";
-      
-      // Use local file path or object URL
-      state.wallpaper.url = file.name;
-      inputWallpaperUrl.value = file.name;
-      syncUIFromState();
-      emitChange();
-    };
+    // ========================================================
+    // 内置文件浏览器（zenity 等原生对话框不可用时的兜底）
+    // ========================================================
+    const browseMask = document.getElementById("browse-mask");
+    const browsePathEl = document.getElementById("browse-path");
+    const browseListEl = document.getElementById("browse-list");
+    const browseHintEl = document.getElementById("browse-hint");
+    const browseCloseBtn = document.getElementById("browse-close");
+    const browseUpBtn = document.getElementById("browse-up");
+    let browseParentDir = null;
+
+    function openFileBrowser(reason) {
+      browseMask.classList.add("open");
+      browseHintEl.textContent = reason ? "原生对话框不可用：" + reason : "";
+      browseTo(null);
+    }
+
+    function closeFileBrowser() {
+      browseMask.classList.remove("open");
+    }
+
+    async function browseTo(dir) {
+      browseListEl.innerHTML = "";
+      const loading = document.createElement("div");
+      loading.className = "browse-empty";
+      loading.textContent = "读取中…";
+      browseListEl.appendChild(loading);
+
+      try {
+        const q = dir ? "?dir=" + encodeURIComponent(dir) : "";
+        const res = await fetch("/api/browse" + q);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "读取目录失败");
+
+        browseParentDir = data.parent;
+        browsePathEl.textContent = data.dir;
+        browsePathEl.title = data.dir;
+        browseListEl.innerHTML = "";
+
+        if (!data.entries.length) {
+          const empty = document.createElement("div");
+          empty.className = "browse-empty";
+          empty.textContent = "该目录下没有图片或视频";
+          browseListEl.appendChild(empty);
+          return;
+        }
+
+        for (const entry of data.entries) {
+          const row = document.createElement("div");
+          row.className = "browse-row";
+
+          const tag = document.createElement("span");
+          tag.className = "browse-tag";
+          tag.textContent = entry.type === "dir" ? "目录" : entry.type === "video" ? "视频" : "图片";
+
+          const name = document.createElement("span");
+          name.className = "browse-name";
+          name.textContent = entry.name;
+          name.title = entry.path;
+
+          row.appendChild(tag);
+          row.appendChild(name);
+          row.onclick = () => {
+            if (entry.type === "dir") {
+              browseTo(entry.path);
+            } else {
+              closeFileBrowser();
+              applyWallpaperPath(entry.path);
+            }
+          };
+          browseListEl.appendChild(row);
+        }
+      } catch (err) {
+        browseListEl.innerHTML = "";
+        const bad = document.createElement("div");
+        bad.className = "browse-empty";
+        bad.textContent = "读取失败：" + err.message;
+        browseListEl.appendChild(bad);
+      }
+    }
+
+    browseCloseBtn.onclick = closeFileBrowser;
+    browseUpBtn.onclick = () => { if (browseParentDir) browseTo(browseParentDir); };
+    browseMask.onclick = (e) => { if (e.target === browseMask) closeFileBrowser(); };
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && browseMask.classList.contains("open")) closeFileBrowser();
+    });
 
     sliderWpBlur.oninput = () => {
       state.wallpaper.blur = Number(sliderWpBlur.value);
@@ -1234,9 +1621,9 @@
         }
       };
       state.wallpaper = {
-        enabled: true,
+        enabled: false,
         type: "video",
-        url: "/home/jingxue/Videos/视频壁纸/星空と少女.mp4",
+        url: "",
         blur: 0,
         brightness: 1.0,
         dim: 0.1,
@@ -1247,6 +1634,8 @@
     };
 
     // Load initial status & config from sidecar
+    let lastDiagnoseAt = 0;
+
     async function init() {
       try {
         const res = await fetch("/api/status");
@@ -1273,6 +1662,12 @@
         console.warn("Could not load status from server, using defaults", e);
       }
       syncUIFromState();
+
+      // 兼容性巡检：首次与聚焦时刷新，最多每 30 秒一次，避免频繁走 CDP
+      if (Date.now() - lastDiagnoseAt > 30000) {
+        lastDiagnoseAt = Date.now();
+        runDiagnose();
+      }
     }
 
     init();
@@ -1286,5 +1681,6 @@
       if (!document.hidden) init();
     }, 4000);
   </script>
+
 </body>
 </html>

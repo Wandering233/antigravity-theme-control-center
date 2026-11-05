@@ -1,0 +1,1065 @@
+/* ========================================================
+   Antigravity Custom Theme (Clean Glassmorphism)
+   ~/.gemini/config/custom-ui/custom.css
+   ======================================================== */
+
+:root {
+  /* 基础毛玻璃参数 */
+  --ag-glass-blur: 24px;
+  --ag-glass-radius: 16px;
+  --ag-glass-opacity: 0.65;
+
+  /* 苹果液态玻璃参数 */
+  --ag-liquid-opacity: 0.35;
+  --ag-liquid-blur: 8px;
+  --ag-liquid-specular: 0.75;
+  --ag-liquid-inner-glow: 0.25;
+  --ag-liquid-saturate: 200%;
+
+  /* 全局统一栅格间隙基准 (Uniform Gutter: 10px) */
+  --ag-gutter: 10px;
+  --ag-gutter-half: 5px;
+
+  /* 壁纸参数 */
+  --ag-wallpaper-blur: 0px;
+  --ag-wallpaper-brightness: 1;
+  --ag-wallpaper-dim: 0.1;
+  --ag-wallpaper-fit: cover;
+}
+
+/* 1. 彻底移除所有与账号、头像、登录相关的 UI 元素 */
+[data-testid*="user-profile"],
+[data-testid*="account"],
+[data-testid*="avatar"],
+[data-testid*="signin"],
+[data-testid*="login"],
+[aria-label*="Account"],
+[aria-label*="Profile"],
+[aria-label*="User Profile"],
+button:has([data-testid*="avatar"]),
+.user-profile-button,
+.account-button,
+.account-switcher,
+div[class*="userProfile"],
+div[class*="user-profile"],
+div[class*="AccountMenu"] {
+  display: none !important;
+}
+
+/* 2. 基础窗口与背景透光 */
+html, body, #root, .agy-shell {
+  background-color: transparent !important;
+}
+
+/* 主工作区内部组件背景透明化，透出毛玻璃底板 */
+.agy-shell > div.flex-1 > div.relative.flex .bg-background:not([role="dialog"]):not([role="menu"]):not([role="listbox"]):not(.settings-modal-container):not(.agy-fastpick):not(.surface-glass) {
+  background-color: transparent !important;
+}
+
+/* ========================================================
+   3. 独立悬浮卡片视觉属性（支持双材质：亚克力毛玻璃 / 苹果液态玻璃）
+   涵盖：左侧边栏外层容器、中间主内容区、右侧辅助面板（Auxiliary Pane）
+   ======================================================== */
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+.agy-sheet div.flex[style*="min-width: 300px"],
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
+  height: calc(100% - calc(var(--ag-gutter) * 2)) !important;
+  border-radius: var(--ag-glass-radius) !important;
+  overflow: hidden !important;
+  transition: width 500ms var(--ease-expo-out), height 500ms var(--ease-expo-out) !important;
+}
+
+/* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
+:root:not([data-ag-material="liquid"]) .agy-sheet div.flex[style*="min-width: 300px"],
+:root:not([data-ag-material="liquid"]) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
+[data-ag-material="frosted"] .agy-sheet div.flex[style*="min-width: 300px"],
+[data-ag-material="frosted"] .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
+  background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.6)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 中间主工作区卡片容器：背景与模糊置于 ::before 伪元素层，彻底避免 Chromium 嵌套 backdrop-filter 导致子组件（输入栏、用户气泡）模糊失效的引擎限制 */
+:root:not([data-ag-material="liquid"]) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+:root:not([data-ag-material="liquid"]) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child,
+[data-ag-material="frosted"] .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+[data-ag-material="frosted"] .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+  position: relative !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+}
+
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+.agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.6)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
+}
+
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child > div,
+.agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child > div {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 深色模式 */
+:root:not([data-ag-material="liquid"]) body.theme-dark .agy-sheet div.flex[style*="min-width: 300px"],
+:root:not([data-ag-material="liquid"]) body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
+[data-ag-material="frosted"] body.theme-dark .agy-sheet div.flex[style*="min-width: 300px"],
+[data-ag-material="frosted"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet div.flex[style*="min-width: 300px"],
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
+[data-ag-material="frosted"] body:not(.theme-light) .agy-sheet div.flex[style*="min-width: 300px"],
+[data-ag-material="frosted"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
+  background: rgba(20, 24, 32, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35) !important;
+}
+
+:root:not([data-ag-material="liquid"]) body.theme-dark .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+:root:not([data-ag-material="liquid"]) body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child,
+[data-ag-material="frosted"] body.theme-dark .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+[data-ag-material="frosted"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child,
+[data-ag-material="frosted"] body:not(.theme-light) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+[data-ag-material="frosted"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+  position: relative !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35) !important;
+}
+
+:root:not([data-ag-material="liquid"]) body.theme-dark .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+:root:not([data-ag-material="liquid"]) body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before,
+[data-ag-material="frosted"] body.theme-dark .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+[data-ag-material="frosted"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before,
+[data-ag-material="frosted"] body:not(.theme-light) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+[data-ag-material="frosted"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before {
+  background: rgba(20, 24, 32, var(--ag-glass-opacity, 0.65)) !important;
+}
+
+/* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
+[data-ag-material="liquid"] .agy-sheet div.flex[style*="min-width: 300px"],
+[data-ag-material="liquid"] .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.35)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.75)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.05)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 1.25)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.16),
+    0 6px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 45px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-ag-material="liquid"] .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+[data-ag-material="liquid"] .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+  position: relative !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 1.25)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.16),
+    0 6px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 45px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-ag-material="liquid"] .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+[data-ag-material="liquid"] .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.35)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.75)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.05)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+}
+
+/* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
+[data-ag-material="liquid"] body.theme-dark .agy-sheet div.flex[style*="min-width: 300px"],
+[data-ag-material="liquid"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
+[data-ag-material="liquid"] body:not(.theme-light) .agy-sheet div.flex[style*="min-width: 300px"],
+[data-ag-material="liquid"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.85)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.5)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.35)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.95)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.2)) !important;
+  box-shadow:
+    0 24px 50px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.22),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 40px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.6)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-ag-material="liquid"] body.theme-dark .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+[data-ag-material="liquid"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child,
+[data-ag-material="liquid"] body:not(.theme-light) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+[data-ag-material="liquid"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+  position: relative !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.95)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.2)) !important;
+  box-shadow:
+    0 24px 50px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.22),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 40px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.6)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-ag-material="liquid"] body.theme-dark .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+[data-ag-material="liquid"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before,
+[data-ag-material="liquid"] body:not(.theme-light) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
+[data-ag-material="liquid"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.85)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.5)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.35)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
+}
+
+/* ========================================================
+   4. 方案 1：全局等距网格系统（Uniform Gutter System）
+   四周到窗口、以及三张卡片之间的间隙由 --ag-gutter 统一驱动
+   ======================================================== */
+/* 左侧边栏卡片：上 var(--ag-gutter)，内侧(右朝向分割线) var(--ag-gutter-half)，下 var(--ag-gutter)，外侧(左) var(--ag-gutter) */
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child {
+  margin: var(--ag-gutter) var(--ag-gutter-half) var(--ag-gutter) var(--ag-gutter) !important;
+}
+
+/* 中间主内容区卡片（默认单工作区或右侧辅助窗格关闭时）：
+   上 var(--ag-gutter)，外侧(右) var(--ag-gutter)，下 var(--ag-gutter)，内侧(左朝向分割线) var(--ag-gutter-half) */
+.agy-sheet div.flex[style*="min-width: 300px"] {
+  margin: var(--ag-gutter) var(--ag-gutter) var(--ag-gutter) var(--ag-gutter-half) !important;
+}
+
+/* 当右侧辅助侧边栏打开时，中间主内容区卡片右侧留 var(--ag-gutter-half) 朝向中间第二条分割线 */
+.agy-sheet > div.relative.flex.w-full.h-full:has(> div:last-child:not([style*="width: 0px"]):not([style*="visibility: hidden"])) > div.flex:first-child {
+  margin: var(--ag-gutter) var(--ag-gutter-half) var(--ag-gutter) var(--ag-gutter-half) !important;
+}
+
+/* 右侧辅助侧边栏卡片（常规停靠在右侧时）：上 var(--ag-gutter)，外侧(右) var(--ag-gutter)，下 var(--ag-gutter)，内侧(左朝向分割线) var(--ag-gutter-half) */
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]):not([style*="position: absolute"]) {
+  margin: var(--ag-gutter) var(--ag-gutter) var(--ag-gutter) var(--ag-gutter-half) !important;
+}
+
+/* 右侧辅助侧边栏最大化（全屏展开）状态：严格锁定在主工作区边界内，固定右缘由右向左展开拉伸，防止瞬移与覆盖左侧边栏 */
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]) {
+  position: absolute !important;
+  left: auto !important;
+  right: var(--ag-gutter) !important;
+  top: var(--ag-gutter) !important;
+  bottom: var(--ag-gutter) !important;
+  width: calc(100% - calc(var(--ag-gutter) + var(--ag-gutter-half))) !important;
+  height: calc(100% - calc(var(--ag-gutter) * 2)) !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: var(--ag-glass-radius) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  overflow: hidden !important;
+  z-index: 20 !important;
+  transition: width 500ms var(--ease-expo-out), height 500ms var(--ease-expo-out) !important;
+}
+
+body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
+body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]),
+body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
+body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]) {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+/* ========================================================
+   4.5 悬浮布局关闭状态 (Docked Flush Layout)
+   ======================================================== */
+body.ag-floating-disabled {
+  --ag-gutter: 0px !important;
+  --ag-gutter-half: 0px !important;
+  --ag-glass-radius: 0px !important;
+}
+
+body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
+body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
+  height: 100% !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
+body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]) {
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 内部绝对定位宽度矫正与背景透明透光 */
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child > div[style*="position: absolute"] {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+}
+
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child .bg-background {
+  background: transparent !important;
+}
+
+/* ========================================================
+   5. 侧边栏内部容器矫正与水平对称（防止内部多层嵌套卡片）
+   确保左侧边栏外层容器为唯一悬浮卡片，其内部所有嵌套层彻底重置为透明无边框无投影
+   ======================================================== */
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child > div,
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child > div > div {
+  width: 100% !important;
+  height: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child > div[style*="position: absolute"] {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* 内部容器及背景透明化，杜绝多层实心背景堆叠 */
+div[role="navigation"][aria-label="Sidebar"],
+.bg-sidebar {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 侧边栏内部分割线严格水平居中对称 */
+div[role="navigation"][aria-label="Sidebar"] div.h-px {
+  background-color: rgba(0, 0, 0, 0.07) !important;
+  margin-left: 8px !important;
+  margin-right: 8px !important;
+}
+
+body.theme-dark div[role="navigation"][aria-label="Sidebar"] div.h-px,
+body:not(.theme-light) div[role="navigation"][aria-label="Sidebar"] div.h-px {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ========================================================
+   6. 分割线与拖拽 Sash 优化：通透底色，居中胶囊
+   ======================================================== */
+.agy-shell div[style*="clamp(256px"] .bg-border,
+.agy-shell .flex-1 > div.relative.flex > div.flex:first-child > .bg-border,
+.agy-shell .flex-1 > div.relative.flex > .bg-border,
+.agy-sheet > div.relative.flex.w-full.h-full > .bg-border {
+  background: transparent !important;
+  border: none !important;
+}
+
+[data-testid*="sash"] > div > div {
+  border-radius: 4px !important;
+}
+
+/* ========================================================
+   7. 顶部左侧导航工具栏精准对齐（嵌入悬浮侧边栏卡片内顶部）
+   ======================================================== */
+.agy-shell .flex-1 > div.absolute.left-0.top-0,
+div:has(> .flex.items-center.pl-2 > [data-testid="app-icon-new-conversation-button"]) {
+  top: 11px !important;
+  left: 11px !important;
+  z-index: 50 !important;
+  transition: top 0.3s ease, left 0.3s ease !important;
+}
+
+/* ========================================================
+   8. 顶部右侧辅助窗格切换按钮精准对齐（与内容区标题栏操作栏基线平齐）
+   ======================================================== */
+.agy-shell .flex-1 > div.absolute.right-0.top-0,
+div:has(> div > [data-testid="toggle-aux-sidebar"]) {
+  top: 11px !important;
+  right: 11px !important;
+  z-index: 50 !important;
+  transition: top 0.3s ease, right 0.3s ease !important;
+}
+
+/* ========================================================
+   9. 内置浏览器 (Webview) 与插件页 (Iframe) 底部圆角裁剪（消除直角与白角溢出）
+   ======================================================== */
+webview,
+div:has(> webview),
+div[style*="position-anchor:"],
+iframe,
+div:has(> iframe),
+.agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div,
+.agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div > div,
+.agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div > div > div,
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child div:has(> iframe),
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child iframe {
+  border-bottom-left-radius: var(--ag-glass-radius) !important;
+  border-bottom-right-radius: var(--ag-glass-radius) !important;
+  overflow: hidden !important;
+  clip-path: inset(0 round 0 0 var(--ag-glass-radius) var(--ag-glass-radius)) !important;
+}
+
+iframe {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.agy-sheet iframe,
+.agy-sheet div:has(> iframe),
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child .bg-background,
+.agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div,
+.agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div > div {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* ========================================================
+   10. 设置弹窗、对话框、浮动菜单与气泡面板（统一毛玻璃拟物化）
+   解决：弹窗背景面板缺失/透明导致文字与下方内容混杂的问题
+   ======================================================== */
+/* 10.1 设置弹窗主体面板 */
+.settings-modal-container,
+[role="dialog"].settings-modal-container {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22), 0 0 1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 确保设置卡片内部子容器透明，不遮挡卡片本身的毛玻璃底板与圆角 */
+.settings-modal-container .bg-background {
+  background: transparent !important;
+}
+
+body.theme-dark .settings-modal-container,
+body:not(.theme-light) .settings-modal-container {
+  background: rgba(26, 30, 40, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* 设置弹窗背景暗色虚化遮罩 */
+.settings-modal-backdrop {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: rgba(0, 0, 0, 0.35) !important;
+}
+
+/* 10.2 快捷命令面板 (FastPick / Command Palette) 与警告/确认弹窗 */
+.agy-fastpick,
+[role="alertdialog"],
+div[data-state="open"] > [role="dialog"]:not(.settings-modal-container) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.theme-dark .agy-fastpick,
+body.theme-dark [role="alertdialog"],
+body.theme-dark div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
+body:not(.theme-light) .agy-fastpick,
+body:not(.theme-light) [role="alertdialog"],
+body:not(.theme-light) div[data-state="open"] > [role="dialog"]:not(.settings-modal-container) {
+  background: rgba(26, 30, 40, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 10.3 浮动下拉菜单、选择列表 (Select / Dropdown / Context Menu) 与气泡卡片 */
+[role="menu"],
+[data-radix-menu-content],
+[data-radix-dropdown-menu-content],
+[data-radix-select-content],
+[data-radix-popover-content],
+.surface-glass:not(.agy-fastpick) {
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.09) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.theme-dark [role="menu"],
+body.theme-dark [data-radix-menu-content],
+body.theme-dark [data-radix-dropdown-menu-content],
+body.theme-dark [data-radix-select-content],
+body.theme-dark [data-radix-popover-content],
+body.theme-dark .surface-glass:not(.agy-fastpick),
+body:not(.theme-light) [role="menu"],
+body:not(.theme-light) [data-radix-menu-content],
+body:not(.theme-light) [data-radix-dropdown-menu-content],
+body:not(.theme-light) [data-radix-select-content],
+body:not(.theme-light) [data-radix-popover-content],
+body:not(.theme-light) .surface-glass:not(.agy-fastpick) {
+  background: rgba(26, 30, 40, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* 10.4 悬停提示 Tooltip */
+[role="tooltip"] {
+  background: rgba(30, 34, 42, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  color: #f3f4f6 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 10.5 通知 Toast 消息弹窗 */
+.toast-root > div,
+div[role="status"]:has(> .toast-title),
+.toast-viewport > div {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
+}
+
+body.theme-dark .toast-root > div,
+body.theme-dark div[role="status"]:has(> .toast-title),
+body.theme-dark .toast-viewport > div,
+body:not(.theme-light) .toast-root > div,
+body:not(.theme-light) div[role="status"]:has(> .toast-title),
+body:not(.theme-light) .toast-viewport > div {
+  background: rgba(26, 30, 40, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ========================================================
+   11. 对话输入框真·悬浮体验与遮罩优化（范围限制+微透出文字）
+   ======================================================== */
+/* 11.1 浮动输入栏容器：悬浮于对话流上方，不挤占正文 flex 布局 */
+div:has(#antigravity\.agentSidePanelInputBox).relative.w-full.px-4.pb-2 {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 30 !important;
+  pointer-events: none !important;
+}
+
+#antigravity\.agentSidePanelInputBox,
+.surface-composer {
+  pointer-events: auto !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 11.2 消息滚动视口高度填满到底部，禁止任何 mask-image 与 isolation 以保证子元素 backdrop-filter 能穿透模糊底板壁纸 */
+.relative.self-stretch.flex-grow.min-h-0 {
+  height: 100% !important;
+}
+
+[data-testid="autoscroll-viewport"] {
+  padding-bottom: 120px !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  isolation: auto !important;
+}
+
+/* 彻底隐藏官方白底线性渐变遮罩层（杜绝死白方块、消除直角溢出并恢复输入框透视与模糊） */
+div.absolute.bottom-0.z-10.pointer-events-none[style*="linear-gradient"] {
+  display: none !important;
+}
+
+/* 顶部粘性消息容器背景透明化（彻底消除粘性横梁白条与四周渐变遮罩） */
+.md-sticky-message-bleed {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.md-sticky-message-bleed::before,
+.md-sticky-message-bleed::after {
+  display: none !important;
+  content: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+div:has(> .md-sticky-message-bleed) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* ========================================================
+   11.4 用户消息气泡双材质玻璃化（右侧对齐收敛，消除全宽拉伸与实心色块）
+   ======================================================== */
+
+/* 确保用户消息外层所有容器均允许悬浮工具栏溢出显示，彻底解决工具栏被切平 (overflow: hidden) 的缺陷 */
+div[data-testid="user-input-step"],
+.group\/user-input-step,
+.group\/user-input-step > div,
+.group\/user-input-step .bg-card-border,
+div[data-testid="user-message-bubble"] {
+  overflow: visible !important;
+}
+
+/* 用户消息外层行容器：右侧对齐 */
+div[data-testid="user-input-step"],
+.group\/user-input-step {
+  align-items: flex-end !important;
+  padding-top: 10px !important;
+  padding-bottom: 4px !important;
+}
+
+div[data-testid="user-input-step"] > div.w-full,
+.group\/user-input-step > div.w-full {
+  width: auto !important;
+  max-width: 85% !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+/* 消除用户消息 1px 边框包装容器的实心色块 */
+div[data-testid="user-input-step"] .bg-card-border,
+.group\/user-input-step .bg-card-border {
+  background: transparent !important;
+  padding: 0 !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+/* 用户消息气泡核心容器：随文本内容自适应缩放（拒绝960px拉伸长条） */
+div[data-testid="user-message-bubble"] {
+  width: fit-content !important;
+  min-width: 48px !important;
+  max-width: 100% !important;
+  padding: 8px 16px !important;
+  border-radius: 18px !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* 材质一：用户消息气泡 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
+:root:not([data-ag-material="liquid"]) div[data-testid="user-message-bubble"],
+[data-ag-material="frosted"] div[data-testid="user-message-bubble"] {
+  background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.55)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.9) !important;
+  color: var(--foreground) !important;
+}
+
+/* 材质一：用户消息气泡 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 深色模式 */
+:root:not([data-ag-material="liquid"]) body.theme-dark div[data-testid="user-message-bubble"],
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) div[data-testid="user-message-bubble"],
+[data-ag-material="frosted"] body.theme-dark div[data-testid="user-message-bubble"],
+[data-ag-material="frosted"] body:not(.theme-light) div[data-testid="user-message-bubble"] {
+  background: rgba(25, 30, 42, calc(var(--ag-glass-opacity, 0.65) * 0.75)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+  color: var(--foreground) !important;
+}
+
+/* 材质二：用户消息气泡 - 苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
+[data-ag-material="liquid"] div[data-testid="user-message-bubble"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.7)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.35)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.6)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.8)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 30px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
+  color: var(--foreground) !important;
+}
+
+/* 材质二：用户消息气泡 - 苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
+[data-ag-material="liquid"] body.theme-dark div[data-testid="user-message-bubble"],
+[data-ag-material="liquid"] body:not(.theme-light) div[data-testid="user-message-bubble"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.4)) 0%,
+    rgba(20, 24, 36, calc(var(--ag-liquid-opacity, 0.25) * 0.8)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.2)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.4)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)) !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 30px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.5)) !important;
+  color: var(--foreground) !important;
+}
+
+/* 用户消息悬浮按钮操作栏：
+   定位在气泡左侧外沿，垂直居中对齐，单行不换行，彻底消除重叠遮挡与高度裁剪 */
+div[data-testid="user-input-step"] .user-input-buttons-container,
+.group\/user-input-step .user-input-buttons-container {
+  position: absolute !important;
+  right: calc(100% + 10px) !important;
+  left: auto !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  white-space: nowrap !important;
+  width: max-content !important;
+  height: 32px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  padding: 4px 10px !important;
+  border-radius: 9999px !important;
+  z-index: 60 !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(14px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12) !important;
+}
+
+.user-input-buttons-container span {
+  white-space: nowrap !important;
+  width: auto !important;
+  height: auto !important;
+  line-height: 1 !important;
+  margin-right: 8px !important;
+}
+
+body.theme-dark div[data-testid="user-input-step"] .user-input-buttons-container,
+body.theme-dark .group\/user-input-step .user-input-buttons-container,
+:root:not(.theme-light) div[data-testid="user-input-step"] .user-input-buttons-container,
+:root:not(.theme-light) .group\/user-input-step .user-input-buttons-container {
+  background: rgba(26, 30, 42, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ========================================================
+   11.5 输入框容器与主体卡片双材质控制（毛玻璃通透与文字透出）
+   ======================================================== */
+
+.surface-composer {
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+/* 材质一：输入框主体卡片 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
+:root:not([data-ag-material="liquid"]) .surface-composer-card,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div,
+[data-ag-material="frosted"] .surface-composer-card,
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div {
+  background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.55)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 3px 8px rgba(0, 0, 0, 0.04) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+:root:not([data-ag-material="liquid"]) .surface-composer-card:hover,
+:root:not([data-ag-material="liquid"]) .surface-composer-card:focus-within,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:hover,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:focus-within,
+[data-ag-material="frosted"] .surface-composer-card:hover,
+[data-ag-material="frosted"] .surface-composer-card:focus-within,
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:hover,
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:focus-within {
+  background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.7)) !important;
+  border-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 材质一：输入框主体卡片 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 深色模式 */
+:root:not([data-ag-material="liquid"]) body.theme-dark .surface-composer-card,
+:root:not([data-ag-material="liquid"]) body.theme-dark #antigravity\.agentSidePanelInputBox > div,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .surface-composer-card,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div,
+[data-ag-material="frosted"] body.theme-dark .surface-composer-card,
+[data-ag-material="frosted"] body.theme-dark #antigravity\.agentSidePanelInputBox > div,
+[data-ag-material="frosted"] body:not(.theme-light) .surface-composer-card,
+[data-ag-material="frosted"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div {
+  background: rgba(20, 24, 34, calc(var(--ag-glass-opacity, 0.65) * 0.75)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+}
+
+:root:not([data-ag-material="liquid"]) body.theme-dark .surface-composer-card:hover,
+:root:not([data-ag-material="liquid"]) body.theme-dark .surface-composer-card:focus-within,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .surface-composer-card:hover,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) .surface-composer-card:focus-within,
+[data-ag-material="frosted"] body.theme-dark .surface-composer-card:hover,
+[data-ag-material="frosted"] body.theme-dark .surface-composer-card:focus-within,
+[data-ag-material="frosted"] body:not(.theme-light) .surface-composer-card:hover,
+[data-ag-material="frosted"] body:not(.theme-light) .surface-composer-card:focus-within {
+  background: rgba(26, 32, 44, calc(var(--ag-glass-opacity, 0.65) * 0.85)) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* 材质二：输入框主体卡片 - 苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
+[data-ag-material="liquid"] .surface-composer-card,
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.75)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.35)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.65)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.4)) !important;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 40px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.1) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+[data-ag-material="liquid"] .surface-composer-card:hover,
+[data-ag-material="liquid"] .surface-composer-card:focus-within,
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:hover,
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:focus-within {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.85)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.45)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.75)) 100%
+  ) !important;
+  border-top-color: rgba(255, 255, 255, 1) !important;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.16),
+    0 6px 16px rgba(0, 0, 0, 0.08),
+    inset 0 2px 0 0 rgba(255, 255, 255, 1),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 50px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 1.2)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 材质二：输入框主体卡片 - 苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
+[data-ag-material="liquid"] body.theme-dark .surface-composer-card,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div,
+[data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card,
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.5)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 0.8)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.3)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.95)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.2)) !important;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    0 6px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 40px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.6)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.35) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+}
+
+[data-ag-material="liquid"] body.theme-dark .surface-composer-card:hover,
+[data-ag-material="liquid"] body.theme-dark .surface-composer-card:focus-within,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:hover,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:focus-within,
+[data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:hover,
+[data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:focus-within,
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:hover,
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:focus-within {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.6)) 0%,
+    rgba(24, 28, 40, calc(var(--ag-liquid-opacity, 0.25) * 0.9)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.35)) 100%
+  ) !important;
+  border-top-color: rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 1.15)) !important;
+  box-shadow:
+    0 24px 54px rgba(0, 0, 0, 0.52),
+    0 8px 20px rgba(0, 0, 0, 0.25),
+    inset 0 2px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 45px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.75)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 11.5 回到底部向下箭头按钮优化（置于浮动输入栏正上方并赋予毛玻璃拟物化） */
+button[aria-label="Scroll to Bottom"],
+button:has(> svg).rounded-full.absolute.bottom-4 {
+  bottom: 106px !important;
+  z-index: 35 !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  transition: transform 0.2s ease, background-color 0.2s ease, opacity 0.2s ease, bottom 0.2s ease !important;
+}
+
+button[aria-label="Scroll to Bottom"]:hover,
+button:has(> svg).rounded-full.absolute.bottom-4:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  transform: translate(-50%, -2px) scale(1.05) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+}
+
+body.theme-dark button[aria-label="Scroll to Bottom"],
+body.theme-dark button:has(> svg).rounded-full.absolute.bottom-4,
+body:not(.theme-light) button[aria-label="Scroll to Bottom"],
+body:not(.theme-light) button:has(> svg).rounded-full.absolute.bottom-4 {
+  background: rgba(30, 34, 45, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+  color: #f3f4f6 !important;
+}
+
+body.theme-dark button[aria-label="Scroll to Bottom"]:hover,
+body.theme-dark button:has(> svg).rounded-full.absolute.bottom-4:hover,
+body:not(.theme-light) button[aria-label="Scroll to Bottom"]:hover,
+body:not(.theme-light) button:has(> svg).rounded-full.absolute.bottom-4:hover {
+  background: rgba(38, 43, 56, 1) !important;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55) !important;
+}
+
+
+/* ========================================================
+   12. 底部动态/静态壁纸容器与渲染控制
+   ======================================================== */
+#ag-wallpaper-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: -99999 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+#ag-wallpaper-img,
+#ag-wallpaper-video {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: var(--ag-wallpaper-fit, cover) !important;
+  filter: blur(var(--ag-wallpaper-blur, 0px)) brightness(var(--ag-wallpaper-brightness, 1)) !important;
+  transform: scale(1.05) !important;
+  transition: opacity 0.4s ease, filter 0.2s ease !important;
+}
+
+#ag-wallpaper-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, var(--ag-wallpaper-dim, 0.1)) !important;
+  pointer-events: none !important;
+  transition: background 0.2s ease !important;
+}
+
+
