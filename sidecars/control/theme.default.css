@@ -564,13 +564,13 @@ body.theme-dark [data-radix-menu-content],
 body.theme-dark [data-radix-dropdown-menu-content],
 body.theme-dark [data-radix-select-content],
 body.theme-dark [data-radix-popover-content],
-body.theme-dark .surface-glass:not(.agy-fastpick),
+body.theme-dark body.theme-dark .surface-glass:not(.agy-fastpick),
 body:not(.theme-light) [role="menu"],
 body:not(.theme-light) [data-radix-menu-content],
 body:not(.theme-light) [data-radix-dropdown-menu-content],
 body:not(.theme-light) [data-radix-select-content],
 body:not(.theme-light) [data-radix-popover-content],
-body:not(.theme-light) .surface-glass:not(.agy-fastpick) {
+body:not(.theme-light) body:not(.theme-light) .surface-glass:not(.agy-fastpick) {
   background: rgba(26, 30, 40, 0.92) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
@@ -622,7 +622,11 @@ div:has(#antigravity\.agentSidePanelInputBox).relative.w-full.px-4.pb-2 {
 }
 
 #antigravity\.agentSidePanelInputBox,
-.surface-composer {
+.surface-composer,
+[data-testid="running-items-panel"],
+[data-testid="interaction-takeover-card"],
+[data-testid="side-question-panel"],
+.agy-takeover-frame {
   pointer-events: auto !important;
   background: transparent !important;
   border: none !important;
@@ -829,9 +833,11 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
    11.5 输入框容器与主体卡片双材质控制（毛玻璃通透与文字透出）
    ======================================================== */
 
+/* 确保输入栏外层容器允许下拉联想/命令弹窗（如 / 斜杠菜单与 @ 提及列表）溢出显示 */
+#antigravity\.agentSidePanelInputBox,
 .surface-composer {
   border-radius: var(--ag-glass-radius, 16px) !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: transparent !important;
 }
 
@@ -852,12 +858,12 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 :root:not([data-ag-material="liquid"]) .surface-composer-card:hover,
 :root:not([data-ag-material="liquid"]) .surface-composer-card:focus-within,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within,
 [data-ag-material="frosted"] .surface-composer-card:hover,
 [data-ag-material="frosted"] .surface-composer-card:focus-within,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within {
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within {
   background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.7)) !important;
   border-color: rgba(255, 255, 255, 0.95) !important;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
@@ -921,8 +927,8 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 [data-ag-material="liquid"] .surface-composer-card:hover,
 [data-ag-material="liquid"] .surface-composer-card:focus-within,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within {
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.85)) 0%,
@@ -966,12 +972,12 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card:hover,
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card:focus-within,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within,
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:hover,
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:focus-within,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):hover,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):has([contenteditable="true"], textarea):focus-within {
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.6)) 0%,
@@ -1025,6 +1031,227 @@ body:not(.theme-light) button:has(> svg).rounded-full.absolute.bottom-4:hover {
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55) !important;
 }
 
+
+
+/* 11.6 后台任务与子智能体面板 (Running Items / Tasks Panel) 毛玻璃与高对比度适配
+   修复任务列表在暗色/动态壁纸下因缺少底板与背景导致隐形、对比度不足的问题 */
+[data-testid="running-items-panel"],
+#antigravity\.agentSidePanelInputBox > div:has(> [data-testid="running-items-panel"]),
+[data-testid="interaction-takeover-card"],
+[data-testid="side-question-panel"],
+.agy-takeover-frame {
+  pointer-events: auto !important;
+}
+
+/* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
+:root:not([data-ag-material="liquid"]) [data-testid="running-items-panel"],
+:root:not([data-ag-material="liquid"]) [data-testid="interaction-takeover-card"],
+:root:not([data-ag-material="liquid"]) [data-testid="side-question-panel"],
+[data-ag-material="frosted"] [data-testid="running-items-panel"],
+[data-ag-material="frosted"] [data-testid="interaction-takeover-card"],
+[data-ag-material="frosted"] [data-testid="side-question-panel"] {
+  background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.75)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  margin-bottom: 8px !important;
+  overflow: hidden !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* 材质一：亚克力毛玻璃 - 深色模式 */
+:root:not([data-ag-material="liquid"]) body.theme-dark [data-testid="running-items-panel"],
+:root:not([data-ag-material="liquid"]) body.theme-dark [data-testid="interaction-takeover-card"],
+:root:not([data-ag-material="liquid"]) body.theme-dark [data-testid="side-question-panel"],
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) [data-testid="running-items-panel"],
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) [data-testid="interaction-takeover-card"],
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) [data-testid="side-question-panel"],
+[data-ag-material="frosted"] body.theme-dark [data-testid="running-items-panel"],
+[data-ag-material="frosted"] body.theme-dark [data-testid="interaction-takeover-card"],
+[data-ag-material="frosted"] body.theme-dark [data-testid="side-question-panel"],
+[data-ag-material="frosted"] body:not(.theme-light) [data-testid="running-items-panel"],
+[data-ag-material="frosted"] body:not(.theme-light) [data-testid="interaction-takeover-card"],
+[data-ag-material="frosted"] body:not(.theme-light) [data-testid="side-question-panel"] {
+  background: rgba(20, 24, 34, calc(var(--ag-glass-opacity, 0.65) * 0.85)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  margin-bottom: 8px !important;
+  overflow: hidden !important;
+}
+
+/* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
+[data-ag-material="liquid"] [data-testid="running-items-panel"],
+[data-ag-material="liquid"] [data-testid="interaction-takeover-card"],
+[data-ag-material="liquid"] [data-testid="side-question-panel"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.8)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.4)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.7)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.4)) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12), inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  margin-bottom: 8px !important;
+  overflow: hidden !important;
+}
+
+/* 材质二：苹果液态玻璃 - 深色模式 */
+[data-ag-material="liquid"] body.theme-dark [data-testid="running-items-panel"],
+[data-ag-material="liquid"] body.theme-dark [data-testid="interaction-takeover-card"],
+[data-ag-material="liquid"] body.theme-dark [data-testid="side-question-panel"],
+[data-ag-material="liquid"] body:not(.theme-light) [data-testid="running-items-panel"],
+[data-ag-material="liquid"] body:not(.theme-light) [data-testid="interaction-takeover-card"],
+[data-ag-material="liquid"] body:not(.theme-light) [data-testid="side-question-panel"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.5)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 0.85)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.3)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.95)) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  margin-bottom: 8px !important;
+  overflow: hidden !important;
+}
+
+/* 内部文字与按钮高对比度与清透质感强化 */
+[data-testid="running-items-panel"] [data-testid="running-items-panel-toggle"],
+[data-testid="running-items-panel"] button {
+  color: var(--foreground) !important;
+}
+
+[data-testid="running-items-panel"] span {
+  color: inherit !important;
+}
+
+[data-testid="running-items-panel"] .text-secondary-foreground,
+[data-testid="running-items-panel"] .text-muted-foreground {
+  color: var(--foreground) !important;
+  opacity: 0.9 !important;
+}
+
+.agy-takeover-card,
+.agy-takeover-frame {
+  background: transparent !important;
+  border: none !important;
+}
+
+
+
+/* ========================================================
+   11.6 输入栏浮动联想与命令菜单（/ 斜杠命令、@ 提及成员）材质同步
+   与输入框卡片完全同步：跟随毛玻璃/液态玻璃双材质、实时响应透明度与模糊度滑块
+   ======================================================== */
+
+/* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
+:root:not([data-ag-material="liquid"]) div[role="listbox"].absolute,
+[data-ag-material="frosted"] div[role="listbox"].absolute {
+  background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.55)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+}
+
+/* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 深色模式 */
+:root:not([data-ag-material="liquid"]) body.theme-dark div[role="listbox"].absolute,
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) div[role="listbox"].absolute,
+[data-ag-material="frosted"] body.theme-dark div[role="listbox"].absolute,
+[data-ag-material="frosted"] body:not(.theme-light) div[role="listbox"].absolute {
+  background: rgba(20, 24, 34, calc(var(--ag-glass-opacity, 0.65) * 0.75)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+}
+
+/* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
+[data-ag-material="liquid"] div[role="listbox"].absolute {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.75)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.35)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.65)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.4)) !important;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.16),
+    0 6px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 40px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.1) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+}
+
+/* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
+[data-ag-material="liquid"] body.theme-dark div[role="listbox"].absolute,
+[data-ag-material="liquid"] body:not(.theme-light) div[role="listbox"].absolute {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.5)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 0.8)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.3)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.95)) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.2)) !important;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    0 6px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 40px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.6)),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.35) !important;
+  border-radius: var(--ag-glass-radius, 16px) !important;
+  overflow: hidden !important;
+}
+
+/* 内部选项高亮与悬浮透明过渡 */
+div[role="listbox"].absolute [role="option"] > div {
+  background: transparent !important;
+  border-radius: calc(var(--ag-glass-radius, 16px) - 4px) !important;
+  margin: 1px 4px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+div[role="listbox"].absolute [role="option"][aria-selected="true"] > div,
+div[role="listbox"].absolute [role="option"]:hover > div,
+div[role="listbox"].absolute .bg-secondary {
+  background: rgba(0, 0, 0, 0.07) !important;
+}
+
+body.theme-dark div[role="listbox"].absolute [role="option"][aria-selected="true"] > div,
+body.theme-dark div[role="listbox"].absolute [role="option"]:hover > div,
+body.theme-dark div[role="listbox"].absolute .bg-secondary,
+body:not(.theme-light) div[role="listbox"].absolute [role="option"][aria-selected="true"] > div,
+body:not(.theme-light) div[role="listbox"].absolute [role="option"]:hover > div,
+body:not(.theme-light) div[role="listbox"].absolute .bg-secondary {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
 
 /* ========================================================
    12. 底部动态/静态壁纸容器与渲染控制
