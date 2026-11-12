@@ -61,18 +61,16 @@ html, body, #root, .agy-shell {
    涵盖：左侧边栏外层容器、中间主内容区、右侧辅助面板（Auxiliary Pane）
    ======================================================== */
 .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
-.agy-sheet div.flex[style*="min-width: 300px"],
+.agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child,
 .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
   height: calc(100% - calc(var(--ag-gutter) * 2)) !important;
   border-radius: var(--ag-glass-radius) !important;
   overflow: hidden !important;
-  transition: width 500ms var(--ease-expo-out), height 500ms var(--ease-expo-out) !important;
+  transition: width 500ms var(--ease-expo-out), height 500ms var(--ease-expo-out), margin 500ms var(--ease-expo-out) !important;
 }
 
 /* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
-:root:not([data-ag-material="liquid"]) .agy-sheet div.flex[style*="min-width: 300px"],
 :root:not([data-ag-material="liquid"]) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
-[data-ag-material="frosted"] .agy-sheet div.flex[style*="min-width: 300px"],
 [data-ag-material="frosted"] .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
   background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.6)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
@@ -114,13 +112,9 @@ html, body, #root, .agy-shell {
 }
 
 /* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 深色模式 */
-:root:not([data-ag-material="liquid"]) body.theme-dark .agy-sheet div.flex[style*="min-width: 300px"],
 :root:not([data-ag-material="liquid"]) body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
-[data-ag-material="frosted"] body.theme-dark .agy-sheet div.flex[style*="min-width: 300px"],
 [data-ag-material="frosted"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
-:root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet div.flex[style*="min-width: 300px"],
 :root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
-[data-ag-material="frosted"] body:not(.theme-light) .agy-sheet div.flex[style*="min-width: 300px"],
 [data-ag-material="frosted"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
   background: rgba(20, 24, 32, var(--ag-glass-opacity, 0.65)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
@@ -157,7 +151,6 @@ html, body, #root, .agy-shell {
 }
 
 /* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
-[data-ag-material="liquid"] .agy-sheet div.flex[style*="min-width: 300px"],
 [data-ag-material="liquid"] .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
   background: linear-gradient(
     135deg,
@@ -214,9 +207,7 @@ html, body, #root, .agy-shell {
 }
 
 /* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
-[data-ag-material="liquid"] body.theme-dark .agy-sheet div.flex[style*="min-width: 300px"],
 [data-ag-material="liquid"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
-[data-ag-material="liquid"] body:not(.theme-light) .agy-sheet div.flex[style*="min-width: 300px"],
 [data-ag-material="liquid"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
   background: linear-gradient(
     135deg,
@@ -285,15 +276,34 @@ html, body, #root, .agy-shell {
   margin: var(--ag-gutter) var(--ag-gutter-half) var(--ag-gutter) var(--ag-gutter) !important;
 }
 
+/* 当左侧边栏收起折叠时，清除其外边距、边框与投影占位，确保右侧主体卡片左侧间距与顶部/底部保持一致 (var(--ag-gutter)) */
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child[style*="width: 0px"],
+.agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child[style*="visibility: hidden"],
+[data-testid="sidebar-split"]:has(.agy-sheet[data-sidebar-closed]) > div.flex:first-child,
+.agy-shell:has(.agy-sheet[data-sidebar-closed]) > div.flex-1 > div.relative.flex > div.flex:first-child {
+  margin: 0 !important;
+  border: none !important;
+  padding: 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  box-shadow: none !important;
+}
+
 /* 中间主内容区卡片（默认单工作区或右侧辅助窗格关闭时）：
    上 var(--ag-gutter)，外侧(右) var(--ag-gutter)，下 var(--ag-gutter)，内侧(左朝向分割线) var(--ag-gutter-half) */
-.agy-sheet div.flex[style*="min-width: 300px"] {
+.agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
   margin: var(--ag-gutter) var(--ag-gutter) var(--ag-gutter) var(--ag-gutter-half) !important;
 }
 
 /* 当右侧辅助侧边栏打开时，中间主内容区卡片右侧留 var(--ag-gutter-half) 朝向中间第二条分割线 */
 .agy-sheet > div.relative.flex.w-full.h-full:has(> div:last-child:not([style*="width: 0px"]):not([style*="visibility: hidden"])) > div.flex:first-child {
-  margin: var(--ag-gutter) var(--ag-gutter-half) var(--ag-gutter) var(--ag-gutter-half) !important;
+  margin-right: var(--ag-gutter-half) !important;
+}
+
+/* 当左侧边栏关闭时，中间主内容区卡片左侧贴近窗口边缘，保留完整的 var(--ag-gutter) 外边距 */
+.agy-sheet[data-sidebar-closed] > div.relative.flex.w-full.h-full > div.flex:first-child,
+:has(> [data-testid="sidebar-split"] > div.flex:first-child[style*="width: 0px"]) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
+  margin-left: var(--ag-gutter) !important;
 }
 
 /* 右侧辅助侧边栏卡片（常规停靠在右侧时）：上 var(--ag-gutter)，外侧(右) var(--ag-gutter)，下 var(--ag-gutter)，内侧(左朝向分割线) var(--ag-gutter-half) */
@@ -645,8 +655,9 @@ div:has(#antigravity\.agentSidePanelInputBox).relative.w-full.px-4.pb-2 {
   isolation: auto !important;
 }
 
-/* 彻底隐藏官方白底线性渐变遮罩层（杜绝死白方块、消除直角溢出并恢复输入框透视与模糊） */
-div.absolute.bottom-0.z-10.pointer-events-none[style*="linear-gradient"] {
+/* 彻底隐藏官方白底线性渐变遮罩层（杜绝死白方块、消除直角溢出并恢复输入框透视与模糊）
+   注意：必须排除右侧边栏标签页的关闭操作栏（.agy-hover-actions），避免误伤标签页关闭叉叉 */
+div.absolute.bottom-0.z-10.pointer-events-none[style*="linear-gradient"]:not(.agy-hover-actions):not(.agy-aux-tab *) {
   display: none !important;
 }
 
