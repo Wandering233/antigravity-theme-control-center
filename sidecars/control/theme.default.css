@@ -694,8 +694,8 @@ div[data-testid="user-input-step"],
 
 div[data-testid="user-input-step"] > div.w-full,
 .group\/user-input-step > div.w-full {
-  width: auto !important;
-  max-width: 85% !important;
+  width: 100% !important;
+  max-width: 100% !important;
   display: flex !important;
   justify-content: flex-end !important;
 }
@@ -711,12 +711,12 @@ div[data-testid="user-input-step"] .bg-card-border,
   justify-content: flex-end !important;
 }
 
-/* 用户消息气泡核心容器：随文本内容自适应缩放（拒绝960px拉伸长条） */
+/* 用户消息气泡核心容器：随文本内容自适应缩放，padding 与官方保持一致 */
 div[data-testid="user-message-bubble"] {
   width: fit-content !important;
   min-width: 48px !important;
   max-width: 100% !important;
-  padding: 8px 16px !important;
+  padding: 8px 12px !important;
   border-radius: 18px !important;
   position: relative !important;
   box-sizing: border-box !important;
@@ -1307,4 +1307,47 @@ html[data-ag-wallpaper="on"] .agy-sheet {
    这里关掉尺寸包含，让玻璃材质重新能采样到壁纸。 */
 html[data-ag-wallpaper="on"] .agy-sheet > div.relative.flex.w-full.h-full {
   container-type: normal !important;
+}
+
+/* ========================================================
+   14. Antigravity 2.31.0 兼容 (.agy-inset-shell 与内嵌卡片)
+   2.31.0 引入了 inset shell 架构：
+   1) .agy-inset-shell (bg-[var(--shell-canvas)]) 在全窗口铺了一层不透明底色，
+      完全遮住最底层的壁纸容器，使所有玻璃卡片只能采样到纯色底板；
+   2) [data-main-content-body] 与 [data-side-panel-body]（及分栏时的
+      [data-tiling-pane]、[data-testid="bottom-terminal-panel"]）各自自带
+      background-color: var(--background)、外边距和 0.5px 内嵌边框，导致出现
+      实色遮罩与"卡片套卡片"的双重圆角边框。
+   ======================================================== */
+html[data-ag-wallpaper="on"] .agy-shell .agy-inset-shell,
+html[data-ag-wallpaper="on"] .agy-inset-shell {
+  --shell-canvas: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+html[data-ag-wallpaper="on"] .agy-sheet[data-sheet-inset] [data-main-content-body],
+html[data-ag-wallpaper="on"] .agy-inset-shell [data-side-panel-body],
+html[data-ag-wallpaper="on"] [data-split-panes] .agy-sheet[data-sheet-inset] [data-tiling-pane],
+html[data-ag-wallpaper="on"] [data-split-panes] .agy-sheet[data-sheet-inset] [data-tiling-pane] > [data-pane-id]:not([data-has-browser-hole="true"]),
+html[data-ag-wallpaper="on"] [data-split-panes] .agy-sheet[data-sheet-inset] [data-main-content-body] > [data-testid="bottom-terminal-panel"] {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* 浮动卡片启用时去掉官方内嵌子卡片的边距、圆角和描边，避免与外层玻璃卡片嵌套双框 */
+body:not(.ag-floating-disabled) .agy-sheet[data-sheet-inset] [data-main-content-body],
+body:not(.ag-floating-disabled) .agy-inset-shell [data-side-panel-body] {
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+body:not(.ag-floating-disabled) .agy-sheet[data-sheet-inset] [data-main-content-body]::before,
+body:not(.ag-floating-disabled) .agy-sheet[data-sheet-inset] [data-main-content-body]::after,
+body:not(.ag-floating-disabled) .agy-inset-shell [data-side-panel-body]::before,
+body:not(.ag-floating-disabled) .agy-inset-shell [data-side-panel-body]::after,
+body:not(.ag-floating-disabled) [data-split-panes] .agy-sheet[data-sheet-inset] [data-tiling-pane]::before,
+body:not(.ag-floating-disabled) [data-split-panes] .agy-sheet[data-sheet-inset] [data-tiling-pane]::after {
+  display: none !important;
+  content: none !important;
 }
