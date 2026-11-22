@@ -411,9 +411,9 @@ body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div:las
   background: transparent !important;
 }
 
-/* 内部容器及背景透明化，杜绝多层实心背景堆叠 */
+/* 内部容器及背景透明化，杜绝多层实心背景堆叠（排除顶栏下拉菜单等 .surface-opaque / .border-menu-border 浮层） */
 div[role="navigation"][aria-label="Sidebar"],
-.bg-sidebar {
+.bg-sidebar:not(.surface-opaque):not(.border-menu-border) {
   background: transparent !important;
   border: none !important;
 }
@@ -501,15 +501,17 @@ iframe {
 }
 
 /* ========================================================
-   10. 设置弹窗、对话框、浮动菜单与气泡面板（统一毛玻璃拟物化）
-   解决：弹窗背景面板缺失/透明导致文字与下方内容混杂的问题
+   10. 设置弹窗、对话框、顶栏/浮动菜单、悬停提示与通知（全面接入双材质控制）
+   说明：所有浮层均接入控制中心的「亚克力毛玻璃 / 苹果液态玻璃」材质与滑块联动，
+   透明度、模糊度、液态高光与内发光完全直连控制中心变量，无下限死区，随滑块 0~100% 实时响应。
    ======================================================== */
+
 /* 10.1 设置弹窗主体面板 */
-.settings-modal-container,
-[role="dialog"].settings-modal-container {
-  background: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(32px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+:root:not([data-ag-material="liquid"]) :is(.settings-modal-container, [role="dialog"].settings-modal-container),
+[data-ag-material="frosted"] :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+  background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
   border: 1px solid rgba(255, 255, 255, 0.75) !important;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22), 0 0 1px rgba(0, 0, 0, 0.1) !important;
 }
@@ -519,11 +521,43 @@ iframe {
   background: transparent !important;
 }
 
-body.theme-dark .settings-modal-container,
-body:not(.theme-light) .settings-modal-container {
-  background: rgba(26, 30, 40, 0.9) !important;
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container),
+[data-ag-material="frosted"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+  background: rgba(24, 28, 38, var(--ag-glass-opacity, 0.65)) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-ag-material="liquid"] :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.1)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.6)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.9)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.22),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 36px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
+}
+
+[data-ag-material="liquid"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.3 + 0.06)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.2)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.2 + 0.04)) 100%
+  ) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.4 + 0.12)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.8 + 0.12)) !important;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 36px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.4)) !important;
 }
 
 /* 设置弹窗背景暗色虚化遮罩 */
@@ -533,127 +567,307 @@ body:not(.theme-light) .settings-modal-container {
   background-color: rgba(0, 0, 0, 0.35) !important;
 }
 
-/* 10.2 快捷命令面板 (FastPick / Command Palette) 与警告/确认弹窗 */
-.agy-fastpick,
-[role="alertdialog"],
-div[data-state="open"] > [role="dialog"]:not(.settings-modal-container) {
-  background: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(28px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.75) !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2) !important;
+/* 10.2 & 10.3 & 10.5 快捷命令面板、对话框、顶栏导航菜单、浮动下拉菜单与通知 Toast（统一接入双材质控制） */
+[data-testid="title-menu-bar"] .surface-opaque,
+[data-testid="title-menu-bar"] .border-menu-border {
+  border-radius: min(var(--ag-glass-radius, 12px), 12px) !important;
+  overflow: hidden !important;
 }
 
-body.theme-dark .agy-fastpick,
-body.theme-dark [role="alertdialog"],
-body.theme-dark div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
-body:not(.theme-light) .agy-fastpick,
-body:not(.theme-light) [role="alertdialog"],
-body:not(.theme-light) div[data-state="open"] > [role="dialog"]:not(.settings-modal-container) {
-  background: rgba(26, 30, 40, 0.9) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* 10.3 浮动下拉菜单、选择列表 (Select / Dropdown / Context Menu) 与气泡卡片 */
-[role="menu"],
-[data-radix-menu-content],
-[data-radix-dropdown-menu-content],
-[data-radix-select-content],
-[data-radix-popover-content],
-.surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip) {
-  background: rgba(255, 255, 255, 0.94) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+/* 亚克力毛玻璃 (Frosted) - 浅色模式 */
+:root:not([data-ag-material="liquid"]) :is(
+  .agy-fastpick,
+  [role="alertdialog"],
+  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
+  [data-radix-select-content],
+  [data-radix-popover-content],
+  [data-testid="title-menu-bar"] .surface-opaque,
+  [data-testid="title-menu-bar"] .border-menu-border,
+  .surface-opaque.border-menu-border,
+  .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip):not([role="menu"]):not([data-radix-menu-content]):not([data-radix-dropdown-menu-content]),
+  .toast-root > div,
+  div[role="status"]:has(> .toast-title),
+  .toast-viewport > div
+),
+[data-ag-material="frosted"] :is(
+  .agy-fastpick,
+  [role="alertdialog"],
+  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
+  [data-radix-select-content],
+  [data-radix-popover-content],
+  [data-testid="title-menu-bar"] .surface-opaque,
+  [data-testid="title-menu-bar"] .border-menu-border,
+  .surface-opaque.border-menu-border,
+  .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip):not([role="menu"]):not([data-radix-menu-content]):not([data-radix-dropdown-menu-content]),
+  .toast-root > div,
+  div[role="status"]:has(> .toast-title),
+  .toast-viewport > div
+) {
+  background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   border: 1px solid rgba(0, 0, 0, 0.09) !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
 }
 
-body.theme-dark [role="menu"],
-body.theme-dark [data-radix-menu-content],
-body.theme-dark [data-radix-dropdown-menu-content],
-body.theme-dark [data-radix-select-content],
-body.theme-dark [data-radix-popover-content],
-body.theme-dark .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip),
-body:not(.theme-light) [role="menu"],
-body:not(.theme-light) [data-radix-menu-content],
-body:not(.theme-light) [data-radix-dropdown-menu-content],
-body:not(.theme-light) [data-radix-select-content],
-body:not(.theme-light) [data-radix-popover-content],
-body:not(.theme-light) .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip) {
-  background: rgba(26, 30, 40, 0.92) !important;
+/* 亚克力毛玻璃 (Frosted) - 深色模式 */
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is(
+  .agy-fastpick,
+  [role="alertdialog"],
+  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
+  [data-radix-select-content],
+  [data-radix-popover-content],
+  [data-testid="title-menu-bar"] .surface-opaque,
+  [data-testid="title-menu-bar"] .border-menu-border,
+  .surface-opaque.border-menu-border,
+  .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip):not([role="menu"]):not([data-radix-menu-content]):not([data-radix-dropdown-menu-content]),
+  .toast-root > div,
+  div[role="status"]:has(> .toast-title),
+  .toast-viewport > div
+),
+[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is(
+  .agy-fastpick,
+  [role="alertdialog"],
+  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
+  [data-radix-select-content],
+  [data-radix-popover-content],
+  [data-testid="title-menu-bar"] .surface-opaque,
+  [data-testid="title-menu-bar"] .border-menu-border,
+  .surface-opaque.border-menu-border,
+  .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip):not([role="menu"]):not([data-radix-menu-content]):not([data-radix-dropdown-menu-content]),
+  .toast-root > div,
+  div[role="status"]:has(> .toast-title),
+  .toast-viewport > div
+) {
+  background: rgba(24, 28, 38, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.46) !important;
 }
 
-/* 10.4 悬停提示 Tooltip（修复 .surface-glass 白底覆盖暗色提示文字导致的白底白字不可读问题，按深浅主题自适应高对比度） */
-[role="tooltip"],
-.compact-tooltip,
-[role="tooltip"].surface-glass {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+/* 苹果液态玻璃 (Liquid) - 浅色模式 */
+[data-ag-material="liquid"] :is(
+  .agy-fastpick,
+  [role="alertdialog"],
+  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
+  [data-radix-select-content],
+  [data-radix-popover-content],
+  [data-testid="title-menu-bar"] .surface-opaque,
+  [data-testid="title-menu-bar"] .border-menu-border,
+  .surface-opaque.border-menu-border,
+  .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip):not([role="menu"]):not([data-radix-menu-content]):not([data-radix-dropdown-menu-content]),
+  .toast-root > div,
+  div[role="status"]:has(> .toast-title),
+  .toast-viewport > div
+) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.0)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.55)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.85)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.14),
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 32px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
+}
+
+/* 苹果液态玻璃 (Liquid) - 深色模式 */
+[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is(
+  .agy-fastpick,
+  [role="alertdialog"],
+  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
+  [data-radix-select-content],
+  [data-radix-popover-content],
+  [data-testid="title-menu-bar"] .surface-opaque,
+  [data-testid="title-menu-bar"] .border-menu-border,
+  .surface-opaque.border-menu-border,
+  .surface-glass:not(.agy-fastpick):not([role="tooltip"]):not(.compact-tooltip):not([role="menu"]):not([data-radix-menu-content]):not([data-radix-dropdown-menu-content]),
+  .toast-root > div,
+  div[role="status"]:has(> .toast-title),
+  .toast-viewport > div
+) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.32 + 0.06)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.2)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.22 + 0.04)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45 + 0.12)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85 + 0.12)) !important;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.48),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.8)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 32px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.45)) !important;
+}
+
+/* 10.3.1 多级嵌套菜单 ([role="menu"]) 独立 ::before 模糊层
+   根因：Base UI 二级子菜单挂载在一级 [role="menu"] 内部，若一级菜单自身挂 backdrop-filter 会创建
+   Chromium Backdrop Root，导致二级子菜单的 backdrop-filter 失效；改为 ::before 绘制背景与模糊，
+   使一、二、三级菜单互为兄弟伪元素，全部可独立采样下方背景与 iframe。 */
+:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+  background: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  position: relative !important;
+}
+
+:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) > :not([role="presentation"]) {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+/* 菜单边框与投影：浅色毛玻璃 */
+:root:not([data-ag-material="liquid"]) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]),
+[data-ag-material="frosted"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+  border: 1px solid rgba(0, 0, 0, 0.09) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+}
+
+:root:not([data-ag-material="liquid"]) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before,
+[data-ag-material="frosted"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+  background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+}
+
+/* 菜单边框与投影：深色毛玻璃 */
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]),
+[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.46) !important;
+}
+
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before,
+[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+  background: rgba(24, 28, 38, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
+}
+
+/* 菜单边框与投影：浅色液态玻璃 */
+[data-ag-material="liquid"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.14),
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 32px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
+}
+
+[data-ag-material="liquid"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.0)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.55)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.85)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+}
+
+/* 菜单边框与投影：深色液态玻璃 */
+[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45 + 0.12)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85 + 0.12)) !important;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.48),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.8)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 32px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.45)) !important;
+}
+
+[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.32 + 0.06)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.2)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.22 + 0.04)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+}
+
+/* 10.4 悬停提示 Tooltip（同样接入双材质控制，按深浅主题保持高对比度文字可读性） */
+:root:not([data-ag-material="liquid"]) :is([role="tooltip"], .compact-tooltip, [role="tooltip"].surface-glass),
+[data-ag-material="frosted"] :is([role="tooltip"], .compact-tooltip, [role="tooltip"].surface-glass) {
+  background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
   color: #18181b !important;
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 1px 4px rgba(0, 0, 0, 0.06) !important;
 }
 
-[role="tooltip"] .text-muted-foreground,
-.compact-tooltip .text-muted-foreground,
-[role="tooltip"] kbd,
-.compact-tooltip kbd {
+[data-ag-material="liquid"] :is([role="tooltip"], .compact-tooltip, [role="tooltip"].surface-glass) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.0)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.65)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  color: #18181b !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.14),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
+    inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 24px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
+}
+
+:is([role="tooltip"], .compact-tooltip) :is(.text-muted-foreground, kbd) {
   color: #52525b !important;
 }
 
-body.theme-dark [role="tooltip"],
-body.theme-dark .compact-tooltip,
-body.theme-dark [role="tooltip"].surface-glass,
-html.dark [role="tooltip"],
-html.dark .compact-tooltip,
-body:not(.theme-light) [role="tooltip"],
-body:not(.theme-light) .compact-tooltip,
-body:not(.theme-light) [role="tooltip"].surface-glass {
-  background: rgba(24, 28, 38, 0.94) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="tooltip"], .compact-tooltip, [role="tooltip"].surface-glass),
+[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="tooltip"], .compact-tooltip, [role="tooltip"].surface-glass) {
+  background: rgba(24, 28, 38, var(--ag-glass-opacity, 0.65)) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
   color: #f4f4f5 !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
 }
 
-body.theme-dark [role="tooltip"] .text-muted-foreground,
-body.theme-dark .compact-tooltip .text-muted-foreground,
-body.theme-dark [role="tooltip"] kbd,
-body.theme-dark .compact-tooltip kbd,
-html.dark [role="tooltip"] .text-muted-foreground,
-html.dark .compact-tooltip .text-muted-foreground,
-body:not(.theme-light) [role="tooltip"] .text-muted-foreground,
-body:not(.theme-light) .compact-tooltip .text-muted-foreground,
-body:not(.theme-light) [role="tooltip"] kbd,
-body:not(.theme-light) .compact-tooltip kbd {
+[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="tooltip"], .compact-tooltip, [role="tooltip"].surface-glass) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.3 + 0.06)) 0%,
+    rgba(22, 26, 36, calc(var(--ag-liquid-opacity, 0.25) * 1.2)) 100%
+  ) !important;
+  backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
+  color: #f4f4f5 !important;
+  border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45 + 0.12)) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85 + 0.12)) !important;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.46),
+    inset 0 1.5px 0 0 rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.8)) !important;
+}
+
+:is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="tooltip"], .compact-tooltip) :is(.text-muted-foreground, kbd) {
   color: rgba(228, 228, 231, 0.72) !important;
-}
-
-/* 10.5 通知 Toast 消息弹窗 */
-.toast-root > div,
-div[role="status"]:has(> .toast-title),
-.toast-viewport > div {
-  background: rgba(255, 255, 255, 0.92) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
-}
-
-body.theme-dark .toast-root > div,
-body.theme-dark div[role="status"]:has(> .toast-title),
-body.theme-dark .toast-viewport > div,
-body:not(.theme-light) .toast-root > div,
-body:not(.theme-light) div[role="status"]:has(> .toast-title),
-body:not(.theme-light) .toast-viewport > div {
-  background: rgba(26, 30, 40, 0.92) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* ========================================================
