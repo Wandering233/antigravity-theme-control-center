@@ -36,7 +36,8 @@
 [aria-label*="Account"],
 [aria-label*="Profile"],
 [aria-label*="User Profile"],
-button:has([data-testid*="avatar"]),
+.agy-shell > div:first-child button:has([data-testid*="avatar"]),
+[data-testid="sidebar-split"] > div.flex:first-child button:has([data-testid*="avatar"]),
 .user-profile-button,
 .account-button,
 .account-switcher,
@@ -66,7 +67,13 @@ html, body, #root, .agy-shell {
   height: calc(100% - calc(var(--ag-gutter) * 2)) !important;
   border-radius: var(--ag-glass-radius) !important;
   overflow: hidden !important;
-  transition: width 500ms var(--ease-expo-out), height 500ms var(--ease-expo-out), margin 500ms var(--ease-expo-out) !important;
+}
+
+/* 拖拽分割线调整卡片宽度时强制禁用宽度过渡动画，确保 1:1 跟手无滞后（保持材质完整渲染不暂停） */
+body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data-dragging]) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child,
+body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data-dragging]) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child,
+body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data-dragging]) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child {
+  transition: none !important;
 }
 
 /* 材质一：亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
@@ -279,8 +286,7 @@ html, body, #root, .agy-shell {
 /* 当左侧边栏收起折叠时，清除其外边距、边框与投影占位，确保右侧主体卡片左侧间距与顶部/底部保持一致 (var(--ag-gutter)) */
 .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child[style*="width: 0px"],
 .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child[style*="visibility: hidden"],
-[data-testid="sidebar-split"]:has(.agy-sheet[data-sidebar-closed]) > div.flex:first-child,
-.agy-shell:has(.agy-sheet[data-sidebar-closed]) > div.flex-1 > div.relative.flex > div.flex:first-child {
+[data-testid="sidebar-split"]:has(> div > .agy-sheet[data-sidebar-closed]) > div.flex:first-child {
   margin: 0 !important;
   border: none !important;
   padding: 0 !important;
@@ -301,8 +307,7 @@ html, body, #root, .agy-shell {
 }
 
 /* 当左侧边栏关闭时，中间主内容区卡片左侧贴近窗口边缘，保留完整的 var(--ag-gutter) 外边距 */
-.agy-sheet[data-sidebar-closed] > div.relative.flex.w-full.h-full > div.flex:first-child,
-:has(> [data-testid="sidebar-split"] > div.flex:first-child[style*="width: 0px"]) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child {
+.agy-sheet[data-sidebar-closed] > div.relative.flex.w-full.h-full > div.flex:first-child {
   margin-left: var(--ag-gutter) !important;
 }
 
@@ -313,7 +318,7 @@ html, body, #root, .agy-shell {
 
 /* 右侧辅助侧边栏最大化（全屏展开）状态：严格锁定在主工作区边界内，固定右缘由右向左展开拉伸，防止瞬移与覆盖左侧边栏 */
 .agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
-.agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]) {
+.agy-sheet[data-side-panel-maximized] > div.relative.flex.w-full.h-full > div:last-child {
   position: absolute !important;
   left: auto !important;
   right: var(--ag-gutter) !important;
@@ -327,13 +332,12 @@ html, body, #root, .agy-shell {
   border: 1px solid rgba(255, 255, 255, 0.65) !important;
   overflow: hidden !important;
   z-index: 20 !important;
-  transition: width 500ms var(--ease-expo-out), height 500ms var(--ease-expo-out) !important;
 }
 
 body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
-body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]),
+body.theme-dark .agy-sheet[data-side-panel-maximized] > div.relative.flex.w-full.h-full > div:last-child,
 body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
-body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]) {
+body:not(.theme-light) .agy-sheet[data-side-panel-maximized] > div.relative.flex.w-full.h-full > div:last-child {
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 
@@ -356,7 +360,7 @@ body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div.fle
 }
 
 body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div:last-child[style*="position: absolute"],
-body.ag-floating-disabled .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:has([data-testid="toggle-maximize-pane"][aria-label="Restore Pane"]) {
+body.ag-floating-disabled .agy-sheet[data-side-panel-maximized] > div.relative.flex.w-full.h-full > div:last-child {
   left: 0 !important;
   right: 0 !important;
   top: 0 !important;
@@ -449,7 +453,7 @@ body:not(.theme-light) div[role="navigation"][aria-label="Sidebar"] div.h-px {
    7. 顶部左侧导航工具栏精准对齐（嵌入悬浮侧边栏卡片内顶部）
    ======================================================== */
 .agy-shell .flex-1 > div.absolute.left-0.top-0,
-div:has(> .flex.items-center.pl-2 > [data-testid="app-icon-new-conversation-button"]) {
+.agy-shell > div.flex-1 > div:has(> .flex.items-center.pl-2 > [data-testid="app-icon-new-conversation-button"]) {
   top: 11px !important;
   left: 11px !important;
   z-index: 50 !important;
@@ -460,7 +464,7 @@ div:has(> .flex.items-center.pl-2 > [data-testid="app-icon-new-conversation-butt
    8. 顶部右侧辅助窗格切换按钮精准对齐（与内容区标题栏操作栏基线平齐）
    ======================================================== */
 .agy-shell .flex-1 > div.absolute.right-0.top-0,
-div:has(> div > [data-testid="toggle-aux-sidebar"]) {
+.agy-shell > div.flex-1 > div:has(> div > [data-testid="toggle-aux-sidebar"]) {
   top: 11px !important;
   right: 11px !important;
   z-index: 50 !important;
@@ -471,10 +475,9 @@ div:has(> div > [data-testid="toggle-aux-sidebar"]) {
    9. 内置浏览器 (Webview) 与插件页 (Iframe) 底部圆角裁剪（消除直角与白角溢出）
    ======================================================== */
 webview,
-div:has(> webview),
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child div:has(> webview),
 div[style*="position-anchor:"],
 iframe,
-div:has(> iframe),
 .agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div,
 .agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div > div,
 .agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div > div > div,
@@ -492,7 +495,7 @@ iframe {
 }
 
 .agy-sheet iframe,
-.agy-sheet div:has(> iframe),
+.agy-sheet > div.relative.flex.w-full.h-full > div:last-child div:has(> iframe),
 .agy-sheet > div.relative.flex.w-full.h-full > div:last-child .bg-background,
 .agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div,
 .agy-sheet > div.absolute.inset-0.pointer-events-none.overflow-clip.z-20 > div > div {
@@ -509,11 +512,11 @@ iframe {
 /* 10.1 设置弹窗主体面板 */
 :root:not([data-ag-material="liquid"]) :is(.settings-modal-container, [role="dialog"].settings-modal-container),
 [data-ag-material="frosted"] :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
-  background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.65)) !important;
+  background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.55 + 0.40)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.75) !important;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22), 0 0 1px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* 确保设置卡片内部子容器透明，不遮挡卡片本身的毛玻璃底板与圆角 */
@@ -523,7 +526,7 @@ iframe {
 
 :root:not([data-ag-material="liquid"]) :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container),
 [data-ag-material="frosted"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
-  background: rgba(24, 28, 38, var(--ag-glass-opacity, 0.65)) !important;
+  background: rgba(24, 28, 38, calc(var(--ag-glass-opacity, 0.65) * 0.45 + 0.50)) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55) !important;
 }
@@ -531,16 +534,16 @@ iframe {
 [data-ag-material="liquid"] :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.1)) 0%,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.6)) 50%,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.9)) 100%
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.55 + 0.45)) 0%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.40 + 0.35)) 50%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.50 + 0.42)) 100%
   ) !important;
   backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
   -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
   border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
   border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
   box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.22),
+    0 25px 60px rgba(0, 0, 0, 0.18),
     inset 0 1.5px 0 0 rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)),
     inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 36px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
 }
@@ -548,9 +551,9 @@ iframe {
 [data-ag-material="liquid"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.3 + 0.06)) 0%,
-    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.2)) 55%,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.2 + 0.04)) 100%
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.25 + 0.08)) 0%,
+    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 0.45 + 0.55)) 55%,
+    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.18 + 0.06)) 100%
   ) !important;
   border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.4 + 0.12)) !important;
   border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.8 + 0.12)) !important;
@@ -560,11 +563,15 @@ iframe {
     inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 36px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.4)) !important;
 }
 
-/* 设置弹窗背景暗色虚化遮罩 */
+/* 设置弹窗背景虚化遮罩（浅色模式用亮透微纱避免透出黑灰发暗，深色模式保留暗色虚化） */
 .settings-modal-backdrop {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
-  background-color: rgba(0, 0, 0, 0.35) !important;
+  background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+:is(body.theme-dark, html.dark body, body:not(.theme-light)) .settings-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.38) !important;
 }
 
 /* 10.2 & 10.3 & 10.5 快捷命令面板、对话框、顶栏导航菜单、浮动下拉菜单与通知 Toast（统一接入双材质控制） */
@@ -874,7 +881,7 @@ iframe {
    11. 对话输入框真·悬浮体验与遮罩优化（范围限制+微透出文字）
    ======================================================== */
 /* 11.1 浮动输入栏容器：悬浮于对话流上方，不挤占正文 flex 布局 */
-div:has(#antigravity\.agentSidePanelInputBox).relative.w-full.px-4.pb-2 {
+.agy-sheet div.relative.w-full.px-4.pb-2:has(#antigravity\.agentSidePanelInputBox) {
   position: absolute !important;
   bottom: 0 !important;
   left: 0 !important;
@@ -907,6 +914,18 @@ div:has(#antigravity\.agentSidePanelInputBox).relative.w-full.px-4.pb-2 {
   isolation: auto !important;
 }
 
+/* 超长对话/大文件单线程布局减负：对视口外的历史消息轮次与大代码块启用原生 content-visibility: auto，
+   进入视口时自动全量渲染不破坏任何交互与悬停菜单，离屏时跳过 Layout/Paint 降低主线程 O(N) 开销 */
+[data-testid="autoscroll-viewport"] .relative.flex.flex-col.gap-y-3 > div {
+  content-visibility: auto !important;
+  contain-intrinsic-size: auto 180px !important;
+}
+
+[data-testid="autoscroll-viewport"] pre {
+  content-visibility: auto !important;
+  contain-intrinsic-size: auto 120px !important;
+}
+
 /* 彻底隐藏官方白底线性渐变遮罩层（杜绝死白方块、消除直角溢出并恢复输入框透视与模糊）
    注意：必须排除右侧边栏标签页的关闭操作栏（.agy-hover-actions），避免误伤标签页关闭叉叉 */
 div.absolute.bottom-0.z-10.pointer-events-none[style*="linear-gradient"]:not(.agy-hover-actions):not(.agy-aux-tab *) {
@@ -929,7 +948,7 @@ div.absolute.bottom-0.z-10.pointer-events-none[style*="linear-gradient"]:not(.ag
   background-image: none !important;
 }
 
-div:has(> .md-sticky-message-bleed) {
+[data-testid="autoscroll-viewport"] div:has(> .md-sticky-message-bleed) {
   background: transparent !important;
   background-color: transparent !important;
 }
@@ -1106,9 +1125,9 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质一：输入框主体卡片 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 浅色模式 */
 :root:not([data-ag-material="liquid"]) .surface-composer-card,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]),
 [data-ag-material="frosted"] .surface-composer-card,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]) {
   background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.55)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
@@ -1121,12 +1140,12 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 :root:not([data-ag-material="liquid"]) .surface-composer-card:hover,
 :root:not([data-ag-material="liquid"]) .surface-composer-card:focus-within,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
-:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):hover,
+:root:not([data-ag-material="liquid"]) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):focus-within,
 [data-ag-material="frosted"] .surface-composer-card:hover,
 [data-ag-material="frosted"] .surface-composer-card:focus-within,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
-[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within {
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):hover,
+[data-ag-material="frosted"] #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):focus-within {
   background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.7)) !important;
   border-color: rgba(255, 255, 255, 0.95) !important;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
@@ -1134,13 +1153,13 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质一：输入框主体卡片 - 亚克力毛玻璃 (Acrylic Frosted Glass) - 深色模式 */
 :root:not([data-ag-material="liquid"]) body.theme-dark .surface-composer-card,
-:root:not([data-ag-material="liquid"]) body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
+:root:not([data-ag-material="liquid"]) body.theme-dark #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]),
 :root:not([data-ag-material="liquid"]) body:not(.theme-light) .surface-composer-card,
-:root:not([data-ag-material="liquid"]) body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
+:root:not([data-ag-material="liquid"]) body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]),
 [data-ag-material="frosted"] body.theme-dark .surface-composer-card,
-[data-ag-material="frosted"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
+[data-ag-material="frosted"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]),
 [data-ag-material="frosted"] body:not(.theme-light) .surface-composer-card,
-[data-ag-material="frosted"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
+[data-ag-material="frosted"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]) {
   background: rgba(20, 24, 34, calc(var(--ag-glass-opacity, 0.65) * 0.75)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
@@ -1165,7 +1184,7 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质二：输入框主体卡片 - 苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
 [data-ag-material="liquid"] .surface-composer-card,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]) {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.75)) 0%,
@@ -1190,8 +1209,8 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 [data-ag-material="liquid"] .surface-composer-card:hover,
 [data-ag-material="liquid"] .surface-composer-card:focus-within,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
-[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within {
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):hover,
+[data-ag-material="liquid"] #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):focus-within {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.85)) 0%,
@@ -1209,9 +1228,9 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 材质二：输入框主体卡片 - 苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea),
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]),
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea) {
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]) {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.5)) 0%,
@@ -1235,12 +1254,12 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card:hover,
 [data-ag-material="liquid"] body.theme-dark .surface-composer-card:focus-within,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
-[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):hover,
+[data-ag-material="liquid"] body.theme-dark #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):focus-within,
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:hover,
 [data-ag-material="liquid"] body:not(.theme-light) .surface-composer-card:focus-within,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):hover,
-[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:has([contenteditable="true"], textarea):focus-within {
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):hover,
+[data-ag-material="liquid"] body:not(.theme-light) #antigravity\.agentSidePanelInputBox > div:not([role="listbox"]):not([role="menu"]):focus-within {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.6)) 0%,
@@ -1258,7 +1277,7 @@ body.theme-dark .group\/user-input-step .user-input-buttons-container,
 
 /* 11.5 回到底部向下箭头按钮优化（置于浮动输入栏正上方并赋予毛玻璃拟物化） */
 button[aria-label="Scroll to Bottom"],
-button:has(> svg).rounded-full.absolute.bottom-4 {
+[data-main-content-body] button.rounded-full.absolute.bottom-4 {
   bottom: 106px !important;
   z-index: 35 !important;
   background: rgba(255, 255, 255, 0.88) !important;
@@ -1270,16 +1289,16 @@ button:has(> svg).rounded-full.absolute.bottom-4 {
 }
 
 button[aria-label="Scroll to Bottom"]:hover,
-button:has(> svg).rounded-full.absolute.bottom-4:hover {
+[data-main-content-body] button.rounded-full.absolute.bottom-4:hover {
   background: rgba(255, 255, 255, 1) !important;
   transform: translate(-50%, -2px) scale(1.05) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
 }
 
 body.theme-dark button[aria-label="Scroll to Bottom"],
-body.theme-dark button:has(> svg).rounded-full.absolute.bottom-4,
+body.theme-dark [data-main-content-body] button.rounded-full.absolute.bottom-4,
 body:not(.theme-light) button[aria-label="Scroll to Bottom"],
-body:not(.theme-light) button:has(> svg).rounded-full.absolute.bottom-4 {
+body:not(.theme-light) [data-main-content-body] button.rounded-full.absolute.bottom-4 {
   background: rgba(30, 34, 45, 0.88) !important;
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
@@ -1287,9 +1306,9 @@ body:not(.theme-light) button:has(> svg).rounded-full.absolute.bottom-4 {
 }
 
 body.theme-dark button[aria-label="Scroll to Bottom"]:hover,
-body.theme-dark button:has(> svg).rounded-full.absolute.bottom-4:hover,
+body.theme-dark [data-main-content-body] button.rounded-full.absolute.bottom-4:hover,
 body:not(.theme-light) button[aria-label="Scroll to Bottom"]:hover,
-body:not(.theme-light) button:has(> svg).rounded-full.absolute.bottom-4:hover {
+body:not(.theme-light) [data-main-content-body] button.rounded-full.absolute.bottom-4:hover {
   background: rgba(38, 43, 56, 1) !important;
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55) !important;
 }

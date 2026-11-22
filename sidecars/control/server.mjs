@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, stat, mkdir, readdir, access } from "node:fs/promises";
+import { readFile, writeFile, stat, mkdir, readdir, access, chmod } from "node:fs/promises";
 import { constants as FS_CONSTANTS, createReadStream, existsSync, watch } from "node:fs";
 import { join, dirname, extname, resolve as resolvePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,6 +47,10 @@ const DEFAULT_CONFIG = {
     brightness: 1,
     dim: 0.1,
     fit: "cover"
+  },
+  launchPerf: {
+    enabled: false,
+    vulkan: false
   }
 };
 
@@ -918,6 +922,170 @@ const MIME_TYPES = {
 let debouncedSaveTimer = null;
 
 // ========================================================
+// 引擎启动性能参数管理（需重启 Antigravity 生效，独立开关控制）
+// ========================================================
+const WRAPPER_PATH = join(os.homedir(), ".local/bin/antigravity");
+const WRAPPER_BACKUP_PATH = join(CONFIG_DIR, "antigravity.wrapper.bak");
+
+function computeRecommendedLaunchPerf() {
+  const cpuThreads = Math.max(1, (os.cpus() || []).length);
+  const totalMemGB = Math.max(1, Math.round(os.totalmem() / 1073741824));
+  // 按逻辑核心数一半动态分配光栅线程，范围限制在 2~8，避免低配机过载
+  const rasterThreads = Math.min(8, Math.max(2, Math.floor(cpuThreads / 2)));
+  // 按物理内存分档分配 V8 堆上限，低内存机器保守控制避免 OOM
+  const maxOldSpaceMB = totalMemGB >= 32
+    ? 12288
+    : (totalMemGB >= 16 ? 8192 : (totalMemGB >= 12 ? 6144 : (totalMemGB >= 8 ? 4096 : 2048)));
+  return { cpuThreads, totalMemGB, rasterThreads, maxOldSpaceMB };
+}
+
+async function detectRunningHostFlags() {
+  const active = { detected: false, rasterThreads: null, maxOldSpaceMB: null, vulkan: false, raw: "" };
+  if (process.platform !== "linux") return active;
+  try {
+    const entries = await readdir("/proc");
+    for (const name of entries) {
+      if (!/^\d+$/.test(name)) continue;
+      try {
+        const raw = (await readFile(`/proc/${name}/cmdline`, "utf8")).replace(/\0/g, " ").trim();
+        if (!raw) continue;
+        if ((raw.includes("/opt/Antigravity/antigravity") || raw.includes("/usr/bin/antigravity")) && !raw.includes("--type=") && !raw.includes("register_loader.js")) {
+          active.detected = true;
+          active.raw = raw;
+          const mRaster = raw.match(/--num-raster-threads=(\d+)/);
+          if (mRaster) active.rasterThreads = Number(mRaster[1]);
+          const mHeap = raw.match(/--max-old-space-size=(\d+)/);
+          if (mHeap) active.maxOldSpaceMB = Number(mHeap[1]);
+          active.vulkan = /--enable-features=[^\s]*Vulkan/.test(raw);
+          break;
+        }
+      } catch {}
+    }
+  } catch {}
+  return active;
+}
+
+function buildLaunchCliArgs(launchPerf, rec) {
+  const args = [`--remote-debugging-port="$CDP_PORT"`];
+  if (launchPerf && launchPerf.enabled) {
+    args.push(`--num-raster-threads=${rec.rasterThreads}`);
+    args.push(`--js-flags="--max-old-space-size=${rec.maxOldSpaceMB}"`);
+    if (launchPerf.vulkan) {
+      args.push(`--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE`);
+    }
+  }
+  return args;
+}
+
+async function inspectLaunchPerfStatus(cfg) {
+  const rec = computeRecommendedLaunchPerf();
+  const lp = Object.assign({ enabled: false, vulkan: false }, cfg?.launchPerf || {});
+  const supported = process.platform === "linux";
+  let wrapperText = "";
+  let hasWrapper = false;
+  if (supported && existsSync(WRAPPER_PATH)) {
+    hasWrapper = true;
+    try { wrapperText = await readFile(WRAPPER_PATH, "utf8"); } catch {}
+  }
+  const wrapperHasPerf = /--num-raster-threads=/.test(wrapperText) || /--max-old-space-size=/.test(wrapperText);
+  const wrapperHasVulkan = /--enable-features=[^\n]*Vulkan/.test(wrapperText);
+  // 若配置从未显式设置过，但本机包装器已存在性能参数，自动同步显示状态
+  if (cfg && cfg.launchPerf === undefined && wrapperHasPerf) {
+    lp.enabled = true;
+    lp.vulkan = wrapperHasVulkan;
+  }
+
+  const active = await detectRunningHostFlags();
+  const activeHasPerf = !!(active.rasterThreads || active.maxOldSpaceMB);
+  const needsRestart = supported && active.detected && (
+    (lp.enabled !== activeHasPerf) ||
+    (lp.enabled && lp.vulkan !== active.vulkan)
+  );
+
+  const previewArgs = buildLaunchCliArgs(lp, rec)
+    .map(a => a.replace('"$CDP_PORT"', "39888"))
+    .join(" ");
+
+  return {
+    supported,
+    platform: process.platform,
+    wrapperPath: supported ? WRAPPER_PATH : null,
+    hasWrapper,
+    wrapperHasPerf,
+    wrapperHasVulkan,
+    config: lp,
+    recommended: rec,
+    active,
+    needsRestart,
+    cliPreview: `antigravity ${previewArgs}`
+  };
+}
+
+async function applyLaunchWrapper(launchPerf) {
+  if (process.platform !== "linux") {
+    return { updated: false, reason: "当前仅 Linux 自动写入启动包装器，其他平台请手动附加下方启动参数" };
+  }
+  const rec = computeRecommendedLaunchPerf();
+  const realBin = existsSync("/usr/bin/antigravity")
+    ? "/usr/bin/antigravity"
+    : (existsSync("/opt/Antigravity/antigravity") ? "/opt/Antigravity/antigravity" : "/usr/bin/antigravity");
+
+  const binDir = dirname(WRAPPER_PATH);
+  if (!existsSync(binDir)) await mkdir(binDir, { recursive: true });
+  if (!existsSync(CONFIG_DIR)) await mkdir(CONFIG_DIR, { recursive: true });
+
+  if (existsSync(WRAPPER_PATH) && !existsSync(WRAPPER_BACKUP_PATH)) {
+    try {
+      const orig = await readFile(WRAPPER_PATH, "utf8");
+      if (!orig.includes("Theme Control Center")) {
+        await writeFile(WRAPPER_BACKUP_PATH, orig, "utf8");
+      }
+    } catch {}
+  }
+
+  const args = buildLaunchCliArgs(launchPerf, rec);
+  const script = [
+    "#!/usr/bin/env bash",
+    "# Managed by Antigravity Theme Control Center",
+    "CDP_PORT=39888",
+    "if ss -ltn 2>/dev/null | grep -qE '(:|\\])39888\\b'; then",
+    "  CDP_PORT=0",
+    "fi",
+    `exec ${realBin} \\`,
+    ...args.map(a => `  ${a} \\`),
+    '  "$@"',
+    ""
+  ].join("\n");
+
+  await writeFile(WRAPPER_PATH, script, "utf8");
+  await chmod(WRAPPER_PATH, 0o755);
+
+  // 确保桌面启动器指向 ~/.local/bin/antigravity（仅在不存在时创建，不破坏用户自定义）
+  const desktopDir = join(os.homedir(), ".local/share/applications");
+  const desktopFile = join(desktopDir, "antigravity.desktop");
+  if (!existsSync(desktopFile)) {
+    try {
+      await mkdir(desktopDir, { recursive: true });
+      await writeFile(desktopFile, [
+        "[Desktop Entry]",
+        "Name=Antigravity",
+        "Comment=Experience liftoff",
+        "GenericName=Agentic Platform",
+        `Exec=${WRAPPER_PATH} %U`,
+        "Icon=antigravity",
+        "Type=Application",
+        "StartupNotify=false",
+        "StartupWMClass=Antigravity",
+        "Categories=Development;Utility;",
+        ""
+      ].join("\n"), "utf8");
+    } catch {}
+  }
+
+  return { updated: true, wrapperPath: WRAPPER_PATH };
+}
+
+// ========================================================
 // 媒体文件检查 / 本地文件选择 / 目录浏览
 // ========================================================
 
@@ -1353,6 +1521,41 @@ const server = createServer(async (req, res) => {
     } catch (err) {
       res.writeHead(err.status || 500, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+    return;
+  }
+
+  // API: Get launch performance tuning status (requires restart)
+  if (url.pathname === "/api/launch-perf" && req.method === "GET") {
+    const cfg = await getOrCreateConfig();
+    const status = await inspectLaunchPerfStatus(cfg);
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify(status));
+    return;
+  }
+
+  // API: Update launch performance tuning flags & write launcher wrapper
+  if (url.pathname === "/api/launch-perf" && req.method === "POST") {
+    try {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      const patch = JSON.parse(body || "{}");
+      const cfg = await getOrCreateConfig();
+      const prev = Object.assign({ enabled: false, vulkan: false }, cfg.launchPerf || {});
+      const next = {
+        enabled: patch.enabled !== undefined ? !!patch.enabled : prev.enabled,
+        vulkan: patch.vulkan !== undefined ? !!patch.vulkan : prev.vulkan
+      };
+      if (!next.enabled) next.vulkan = false;
+      cfg.launchPerf = next;
+      await saveConfig(cfg);
+      const writeRes = await applyLaunchWrapper(next);
+      const status = await inspectLaunchPerfStatus(cfg);
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ ok: true, writeRes, ...status }));
+    } catch (e) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
     }
     return;
   }

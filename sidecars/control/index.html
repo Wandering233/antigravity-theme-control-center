@@ -719,7 +719,34 @@
     </div>
   </div>
 
-  <!-- 3. 结构诊断 -->
+  <!-- 3. 引擎性能启动参数（需重启生效，独立开关） -->
+  <div class="card" id="card-launch-perf">
+    <div class="card-header">
+      <div class="card-title">引擎性能参数 <span style="font-size:11px;font-weight:500;opacity:0.7;margin-left:4px;">需重启生效</span></div>
+      <label class="switch-label">
+        <input type="checkbox" id="switch-launch-perf">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+    <div class="hook-desc" id="launch-perf-desc">自动写入启动包装器：多核光栅化线程、扩大 V8 堆上限与调试端口防冲突。</div>
+
+    <div id="launch-perf-sub" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(128,128,128,0.16);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div>
+          <div style="font-size:13px; font-weight:500;">Vulkan 渲染后端（实验性）</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">从 ANGLE OpenGL 切为 Vulkan，可测试改善 Wayland 拖拽模糊闪烁；若黑屏可关闭并重启恢复。</div>
+        </div>
+        <label class="switch-label" style="flex-shrink:0;">
+          <input type="checkbox" id="switch-launch-vulkan">
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+    </div>
+
+    <div id="launch-perf-banner" style="display:none; margin-top:10px; padding:8px 10px; border-radius:10px; font-size:12px; line-height:1.45;"></div>
+  </div>
+
+  <!-- 4. 结构诊断 -->
   <div class="card" id="card-audit">
     <div class="card-header">
       <div class="card-title">结构诊断</div>
@@ -1789,6 +1816,95 @@
       emitChange();
     };
 
+    // ========================================================
+    // 引擎性能启动参数（需重启生效，独立开关）
+    // ========================================================
+    const switchLaunchPerf = document.getElementById("switch-launch-perf");
+    const switchLaunchVulkan = document.getElementById("switch-launch-vulkan");
+    const launchPerfSub = document.getElementById("launch-perf-sub");
+    const launchPerfDesc = document.getElementById("launch-perf-desc");
+    const launchPerfBanner = document.getElementById("launch-perf-banner");
+    let launchPerfBusy = false;
+
+    function renderLaunchPerf(data) {
+      if (!data || !switchLaunchPerf) return;
+      const lp = data.config || { enabled: false, vulkan: false };
+      const rec = data.recommended || {};
+      switchLaunchPerf.checked = !!lp.enabled;
+      if (switchLaunchVulkan) switchLaunchVulkan.checked = !!(lp.enabled && lp.vulkan);
+      if (launchPerfSub) launchPerfSub.style.display = lp.enabled ? "block" : "none";
+
+      if (launchPerfDesc && rec.rasterThreads) {
+        launchPerfDesc.textContent = `自动适配本机（${rec.cpuThreads} 线程 / ${rec.totalMemGB}GB 内存）：${rec.rasterThreads} 线程光栅化 · ${rec.maxOldSpaceMB}MB V8 堆 · 调试端口自动避让。`;
+      }
+
+      if (!launchPerfBanner) return;
+      if (!data.supported) {
+        launchPerfBanner.style.display = "block";
+        launchPerfBanner.style.background = "rgba(148, 163, 184, 0.14)";
+        launchPerfBanner.style.color = "var(--text-muted)";
+        launchPerfBanner.textContent = `当前系统 (${data.platform}) 需手动附加启动参数：${data.cliPreview || ""}`;
+      } else if (data.needsRestart) {
+        launchPerfBanner.style.display = "block";
+        launchPerfBanner.style.background = "rgba(245, 158, 11, 0.14)";
+        launchPerfBanner.style.color = "#d97706";
+        launchPerfBanner.textContent = `⚠ 启动参数已写入 ${data.wrapperPath}，请完全退出并手动重启 Antigravity 后生效。`;
+      } else if (lp.enabled && data.active && data.active.detected) {
+        launchPerfBanner.style.display = "block";
+        launchPerfBanner.style.background = "rgba(34, 197, 94, 0.14)";
+        launchPerfBanner.style.color = "#16a34a";
+        const parts = [];
+        if (data.active.rasterThreads) parts.push(`${data.active.rasterThreads} 线程光栅`);
+        if (data.active.maxOldSpaceMB) parts.push(`${data.active.maxOldSpaceMB}MB 堆`);
+        if (data.active.vulkan) parts.push("Vulkan");
+        launchPerfBanner.textContent = `✓ 当前运行进程已生效${parts.length ? "（" + parts.join(" · ") + "）" : ""}`;
+      } else {
+        launchPerfBanner.style.display = "none";
+      }
+    }
+
+    async function loadLaunchPerf() {
+      if (launchPerfBusy) return;
+      try {
+        const res = await fetch("/api/launch-perf", { cache: "no-store" });
+        if (res.ok) renderLaunchPerf(await res.json());
+      } catch (e) {}
+    }
+
+    async function updateLaunchPerf(patch) {
+      if (launchPerfBusy) return;
+      launchPerfBusy = true;
+      if (switchLaunchPerf) switchLaunchPerf.disabled = true;
+      if (switchLaunchVulkan) switchLaunchVulkan.disabled = true;
+      try {
+        const res = await fetch("/api/launch-perf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch)
+        });
+        const data = await res.json();
+        if (data && data.ok) renderLaunchPerf(data);
+      } catch (e) {
+        console.warn("updateLaunchPerf failed:", e);
+      } finally {
+        launchPerfBusy = false;
+        if (switchLaunchPerf) switchLaunchPerf.disabled = false;
+        if (switchLaunchVulkan) switchLaunchVulkan.disabled = false;
+      }
+    }
+
+    if (switchLaunchPerf) {
+      switchLaunchPerf.onchange = () => {
+        const on = !!switchLaunchPerf.checked;
+        updateLaunchPerf({ enabled: on, vulkan: on && !!(switchLaunchVulkan && switchLaunchVulkan.checked) });
+      };
+    }
+    if (switchLaunchVulkan) {
+      switchLaunchVulkan.onchange = () => {
+        updateLaunchPerf({ enabled: true, vulkan: !!switchLaunchVulkan.checked });
+      };
+    }
+
     // Load initial status & config from sidecar
     let lastDiagnoseAt = 0;
 
@@ -1823,6 +1939,7 @@
       if (Date.now() - lastDiagnoseAt > 30000) {
         lastDiagnoseAt = Date.now();
         runDiagnose();
+        loadLaunchPerf();
       }
     }
 
