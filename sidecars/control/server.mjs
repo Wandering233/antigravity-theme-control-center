@@ -2112,11 +2112,10 @@ foreach ($root in $roots) {
 }
 
 async function applyWindowsNodeHook(enabled) {
-  const dest = HOOK_SCRIPT_DEST;
+  const dest = HOOK_SCRIPT_DEST.replace(/\\/g, "/");
   if (enabled) {
     await ensureHookScriptCopied();
   }
-  const escapedDest = dest.replace(/'/g, "''");
   const flagStr = /\s/.test(dest) ? `--require "${dest}"` : `--require ${dest}`;
   const escapedFlag = flagStr.replace(/'/g, "''");
   await runPowerShellJson(`
