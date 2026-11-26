@@ -569,14 +569,14 @@ iframe {
     inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 36px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.4)) !important;
 }
 
-/* 设置弹窗背景虚化遮罩（浅色模式用亮透微纱避免透出黑灰发暗，深色模式保留暗色虚化） */
-.settings-modal-backdrop {
+/* 设置弹窗及通用模态框背景虚化遮罩（浅色模式用亮透微纱避免透出黑灰发暗，深色模式保留暗色虚化） */
+:is(.settings-modal-backdrop, [data-testid="modal-backdrop"]) {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   background-color: rgba(255, 255, 255, 0.18) !important;
 }
 
-:is(body.theme-dark, html.dark body, body:not(.theme-light)) .settings-modal-backdrop {
+:is(body.theme-dark, html.dark body, body:not(.theme-light)) :is(.settings-modal-backdrop, [data-testid="modal-backdrop"]) {
   background-color: rgba(0, 0, 0, 0.38) !important;
 }
 
