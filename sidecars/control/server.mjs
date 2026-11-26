@@ -26,6 +26,7 @@ const DEFAULT_CONFIG = {
     material: "liquid",
     gutter: 10,
     radius: 16,
+    darkDim: 0.35,
     frosted: {
       opacity: 0.65,
       blur: 24
@@ -705,8 +706,10 @@ function hostDomApply(config, sidecarPort) {
     const frosted = f.frosted || {};
     const fOpacity = frosted.opacity !== undefined ? frosted.opacity : (f.opacity !== undefined ? f.opacity : 0.65);
     const fBlur = frosted.blur !== undefined ? frosted.blur : (f.blur !== undefined ? f.blur : 24);
+    const darkDim = f.darkDim !== undefined ? f.darkDim : 0.35;
     docStyle.setProperty("--ag-glass-opacity", `${fOpacity}`);
     docStyle.setProperty("--ag-glass-blur", `${fBlur}px`);
+    docStyle.setProperty("--ag-dark-dim", `${darkDim}`);
 
     // 兼容社区常见毛玻璃主题变量规范 (如 AreSet01/antigravity-theme 等)
     docStyle.setProperty("--glass-blur", `${fBlur}px`);
@@ -909,10 +912,768 @@ function hostDomApply(config, sidecarPort) {
       }
     }
   }
+
+  // ========================================================
+  // 思考等级滑块（Codex / GPT 风格，注入在模型选择菜单的 View Usage 上方）
+  // - 动态探测并缓存每个模型真实支持的思考等级（如 Neon/Hydrogen 支持 Extra High）
+  // - 拦截并隐藏思考等级二级菜单弹出（不影响 Orchestrator / View Usage 二级菜单）
+  // - 支持点击模型直接切换 + 平滑滑动/拖拽切换思考等级
+  // ========================================================
+  const enableThinkingSlider = config.features?.thinkingSlider !== false;
+  const SLIDER_STYLE_ID = "ag-thinking-slider-style";
+  if (!enableThinkingSlider) {
+    if (window.__agThinkingSliderObserver) {
+      try { window.__agThinkingSliderObserver.disconnect(); } catch (e) {}
+      window.__agThinkingSliderObserver = null;
+    }
+    document.getElementById(SLIDER_STYLE_ID)?.remove();
+    document.querySelectorAll("#ag-thinking-slider-box").forEach(el => el.remove());
+    document.querySelectorAll("[data-ag-thinking-slider]").forEach(el => el.removeAttribute("data-ag-thinking-slider"));
+    document.querySelectorAll("[data-ag-thinking-model]").forEach(el => el.removeAttribute("data-ag-thinking-model"));
+    document.querySelectorAll("[data-ag-thinking-footer]").forEach(el => el.removeAttribute("data-ag-thinking-footer"));
+    document.querySelectorAll("[data-ag-thinking-usage]").forEach(el => el.removeAttribute("data-ag-thinking-usage"));
+    document.querySelectorAll("[data-ag-hidden-thinking-entry]").forEach(el => el.removeAttribute("data-ag-hidden-thinking-entry"));
+  } else {
+    // 总是刷新样式与控制器，确保热更新后立即生效
+    if (window.__agThinkingSliderObserver) {
+      try { window.__agThinkingSliderObserver.disconnect(); } catch (e) {}
+      window.__agThinkingSliderObserver = null;
+    }
+    let sliderStyle = document.getElementById(SLIDER_STYLE_ID);
+    if (!sliderStyle) {
+      sliderStyle = document.createElement("style");
+      sliderStyle.id = SLIDER_STYLE_ID;
+      document.head.appendChild(sliderStyle);
+    }
+    sliderStyle.textContent = `
+      /* 彻底去掉一级思考模型项右侧的小箭头 >（绝不隐藏任何二级/三级菜单，确保 Orchestrator 三级菜单完全正常） */
+      [data-ag-thinking-model="1"] > span:last-child:has(svg):not(.ml-auto) {
+        display: none !important;
+      }
+      /* 悬停当前选中模型时保留其勾选对号 ✓ */
+      [data-ag-thinking-model="1"] > span.ml-auto:has(svg) {
+        display: flex !important;
+      }
+      [data-ag-thinking-model="1"]:hover {
+        background: rgba(128, 128, 128, 0.14) !important;
+        border-radius: 6px;
+      }
+      /* 彻底隐藏原菜单中可能残留的独立“思考”入口节点，避免与 View Usage 重叠 */
+      [data-ag-hidden-thinking-entry="1"] {
+        display: none !important;
+      }
+      /* 保证底部容器与模型列表、思考强度区块、View Usage 垂直流式排布，绝不挤压重叠 */
+      [data-ag-thinking-slider="1"] [role="separator"] {
+        background: rgba(0, 0, 0, 0.06) !important;
+        margin: 4px -4px 0 !important;
+        flex-shrink: 0 !important;
+      }
+      body.theme-dark [data-ag-thinking-slider="1"] [role="separator"],
+      html.dark [data-ag-thinking-slider="1"] [role="separator"],
+      body:not(.theme-light) [data-ag-thinking-slider="1"] [role="separator"] {
+        background: rgba(255, 255, 255, 0.08) !important;
+      }
+      [data-ag-thinking-footer="1"] {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-shrink: 0 !important;
+        gap: 0 !important;
+      }
+      [data-ag-thinking-usage="1"] {
+        margin-top: 4px !important;
+        flex-shrink: 0 !important;
+      }
+      /* OpenAI Codex / ChatGPT Desktop 官方风格粗胶囊思考强度滑块 */
+      #ag-thinking-slider-box {
+        box-sizing: border-box;
+        flex-shrink: 0;
+        padding: 10px 12px 11px;
+        margin: 0 -4px;
+        border-top: none !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        position: relative;
+        z-index: 2;
+        user-select: none;
+        -webkit-user-select: none;
+        overflow: hidden;
+        max-height: 140px;
+        opacity: 1;
+        transition: max-height 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                    opacity 160ms ease,
+                    padding-top 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                    padding-bottom 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                    border-color 160ms ease;
+      }
+      body.theme-dark #ag-thinking-slider-box,
+      html.dark #ag-thinking-slider-box,
+      body:not(.theme-light) #ag-thinking-slider-box {
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+      }
+      #ag-thinking-slider-box[data-collapsed="1"] {
+        max-height: 0 !important;
+        opacity: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        border-bottom-width: 0 !important;
+        pointer-events: none !important;
+      }
+      /* 顶部三栏头部：左闪电图标 ⚡ / 中间双行（蓝色档位 + 模型名）/ 右重置图标 ↻ */
+      .ag-ts-header {
+        display: grid;
+        grid-template-columns: 24px 1fr 24px;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .ag-ts-side-btn {
+        width: 24px;
+        height: 24px;
+        border: none;
+        padding: 0;
+        margin: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: rgba(15, 23, 42, 0.48);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+      }
+      .ag-ts-side-btn:hover {
+        background: rgba(0, 0, 0, 0.06);
+        color: rgba(15, 23, 42, 0.82);
+      }
+      .ag-ts-side-btn:active {
+        transform: scale(0.92);
+      }
+      body.theme-dark .ag-ts-side-btn,
+      html.dark .ag-ts-side-btn,
+      body:not(.theme-light) .ag-ts-side-btn {
+        color: rgba(241, 245, 249, 0.48);
+      }
+      body.theme-dark .ag-ts-side-btn:hover,
+      html.dark .ag-ts-side-btn:hover,
+      body:not(.theme-light) .ag-ts-side-btn:hover {
+        background: rgba(255, 255, 255, 0.09);
+        color: rgba(248, 250, 252, 0.90);
+      }
+      .ag-ts-side-btn svg {
+        width: 14px;
+        height: 14px;
+        display: block;
+      }
+      .ag-ts-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        line-height: 1.2;
+        gap: 2px;
+      }
+      .ag-ts-value {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: #0066ff;
+        white-space: nowrap;
+        transition: opacity 140ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      body.theme-dark .ag-ts-value,
+      html.dark .ag-ts-value,
+      body:not(.theme-light) .ag-ts-value {
+        color: #4da3ff;
+      }
+      .ag-ts-value[data-bump="1"] {
+        transform: scale(1.04);
+      }
+      .ag-ts-model {
+        font-size: 10.5px;
+        font-weight: 500;
+        color: rgba(15, 23, 42, 0.50);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
+      body.theme-dark .ag-ts-model,
+      html.dark .ag-ts-model,
+      body:not(.theme-light) .ag-ts-model {
+        color: rgba(241, 245, 249, 0.52);
+      }
+      /* 粗胶囊轨道（26px 高）+ 蓝色实心同心包裹填充 + 内嵌 22px 纯白大圆钮 + 均匀档位圆点 */
+      .ag-ts-slider-area {
+        position: relative;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        touch-action: none;
+        margin: 0;
+      }
+      .ag-ts-rail {
+        position: relative;
+        width: 100%;
+        height: 26px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.075);
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+      }
+      body.theme-dark .ag-ts-rail,
+      html.dark .ag-ts-rail,
+      body:not(.theme-light) .ag-ts-rail {
+        background: rgba(255, 255, 255, 0.11);
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+      }
+      .ag-ts-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        min-width: 26px;
+        border-radius: 999px;
+        background: #0066ff;
+        transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+        pointer-events: none;
+        z-index: 1;
+      }
+      body.theme-dark .ag-ts-fill,
+      html.dark .ag-ts-fill,
+      body:not(.theme-light) .ag-ts-fill {
+        background: #0a84ff;
+      }
+      .ag-ts-slider-area[data-dragging="1"] .ag-ts-fill {
+        transition: none;
+      }
+      .ag-ts-dot {
+        position: absolute;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.24);
+        pointer-events: none;
+        z-index: 2;
+        transition: background 160ms ease, opacity 160ms ease;
+      }
+      .ag-ts-dot[data-passed="1"] {
+        background: rgba(255, 255, 255, 0.46);
+      }
+      body.theme-dark .ag-ts-dot,
+      html.dark .ag-ts-dot,
+      body:not(.theme-light) .ag-ts-dot {
+        background: rgba(255, 255, 255, 0.28);
+      }
+      body.theme-dark .ag-ts-dot[data-passed="1"],
+      html.dark .ag-ts-dot[data-passed="1"],
+      body:not(.theme-light) .ag-ts-dot[data-passed="1"] {
+        background: rgba(255, 255, 255, 0.50);
+      }
+      .ag-ts-thumb {
+        position: absolute;
+        top: 50%;
+        width: 22px;
+        height: 22px;
+        box-sizing: border-box;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 0.5px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.20), 0 0.5px 1px rgba(0, 0, 0, 0.12);
+        transform: translate(-50%, -50%) scale(1);
+        pointer-events: none;
+        z-index: 3;
+        will-change: left, transform;
+        transition: left 240ms cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+                    box-shadow 160ms ease;
+      }
+      body.theme-dark .ag-ts-thumb,
+      html.dark .ag-ts-thumb,
+      body:not(.theme-light) .ag-ts-thumb {
+        background: #ffffff;
+        border: none;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.38);
+      }
+      .ag-ts-slider-area:hover .ag-ts-thumb {
+        transform: translate(-50%, -50%) scale(1.03);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.24);
+      }
+      .ag-ts-slider-area[data-dragging="1"] .ag-ts-thumb {
+        transition: transform 120ms ease, box-shadow 120ms ease;
+        transform: translate(-50%, -50%) scale(0.96);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.26);
+      }
+      /* 底部极简档位刻度文字：与内嵌圆点严格对齐，支持直点切换 */
+      .ag-ts-labels {
+        position: relative;
+        height: 15px;
+        margin: 6px 0 0;
+        font-size: 10.5px;
+        line-height: 15px;
+      }
+      .ag-ts-lbl {
+        position: absolute;
+        top: 0;
+        transform: translateX(-50%);
+        opacity: 0.44;
+        font-weight: 500;
+        color: rgba(15, 23, 42, 0.85);
+        white-space: nowrap;
+        cursor: pointer;
+        transition: opacity 150ms ease, color 150ms ease;
+      }
+      body.theme-dark .ag-ts-lbl,
+      html.dark .ag-ts-lbl,
+      body:not(.theme-light) .ag-ts-lbl {
+        color: rgba(248, 250, 252, 0.88);
+      }
+      .ag-ts-lbl[data-pos="first"] { transform: translateX(0); }
+      .ag-ts-lbl[data-pos="last"] { transform: translateX(-100%); }
+      .ag-ts-lbl:hover { opacity: 0.82; }
+      .ag-ts-lbl[data-active="1"] {
+        opacity: 1;
+        font-weight: 600;
+        color: #0066ff;
+      }
+      body.theme-dark .ag-ts-lbl[data-active="1"],
+      html.dark .ag-ts-lbl[data-active="1"],
+      body:not(.theme-light) .ag-ts-lbl[data-active="1"] {
+        color: #4da3ff;
+      }
+    `;
+
+    const EFFORT_ORDER = ["none", "off", "minimal", "instant", "light", "low", "standard", "medium", "extended", "high", "heavy", "xhigh", "extra high", "max", "pro"];
+    const EFFORT_DISPLAY = {
+      none: "None",
+      off: "Off",
+      minimal: "Minimal",
+      instant: "Instant",
+      light: "Light",
+      low: "Low",
+      standard: "Standard",
+      medium: "Medium",
+      extended: "Extended",
+      high: "High",
+      heavy: "Heavy",
+      xhigh: "Extra High",
+      "extra high": "Extra High",
+      max: "Max",
+      pro: "Pro",
+    };
+
+    const parseOptionLabel = (label) => {
+      const m = String(label || "").trim().match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+      if (!m) return { base: String(label || "").trim(), effortKey: null, effortDisplay: null };
+      const rawEff = m[2].trim().toLowerCase().replace(/\s+/g, " ");
+      if (!EFFORT_ORDER.includes(rawEff)) {
+        return { base: String(label || "").trim(), effortKey: null, effortDisplay: null };
+      }
+      return { base: m[1].trim(), effortKey: rawEff, effortDisplay: EFFORT_DISPLAY[rawEff] || m[2].trim() };
+    };
+
+    // 直接从 Antigravity 原生 React Fiber 读取 selectedModel / setSelectedModel / modelOptions（0ms 即时原生切换）
+    // 多标签页场景下优先取当前可见的 model-selector-trigger，避免读到后台隐藏会话的模型
+    const getModelController = () => {
+      const trigs = Array.from(document.querySelectorAll("[data-testid='model-selector-trigger']"));
+      const trig = trigs.find(el => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      }) || trigs[0];
+      if (!trig) return null;
+      const fiberKey = Object.keys(trig).find(k => k.startsWith("__reactFiber$"));
+      if (!fiberKey) return null;
+      let f = trig[fiberKey];
+      for (let i = 0; i < 32 && f; i++, f = f.return) {
+        const p = f.memoizedProps;
+        if (p && typeof p.setSelectedModel === "function" && Array.isArray(p.modelOptions)) {
+          return p;
+        }
+      }
+      return null;
+    };
+
+    const getEffortGroupForBase = (ctrl, baseName) => {
+      if (!ctrl || !baseName) return [];
+      const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+      const target = norm(baseName);
+      const list = [];
+      for (const opt of ctrl.modelOptions) {
+        if (opt.disabled) continue;
+        const parsed = parseOptionLabel(opt.label);
+        if (!parsed.effortKey) continue;
+        if (norm(parsed.base) === target) {
+          list.push({
+            opt,
+            effortKey: parsed.effortKey,
+            display: parsed.effortDisplay,
+            order: EFFORT_ORDER.indexOf(parsed.effortKey),
+          });
+        }
+      }
+      list.sort((a, b) => a.order - b.order);
+      return list;
+    };
+
+    const getDirectModelItems = (menu) => {
+      return Array.from(menu.querySelectorAll("[role='menuitem']")).filter(el => el.closest("[role='menu']") === menu);
+    };
+
+    const isThinkingModelItem = (el) => {
+      if (!el || el.getAttribute("aria-haspopup") !== "menu") return false;
+      const tid = el.getAttribute("data-testid") || "";
+      if (tid === "model-selector-orchestrator") return false;
+      const txt = (el.textContent || "").trim();
+      if (/View Usage|查看用量/i.test(txt)) return false;
+      // 只匹配包含 [data-model-base] 的一级思考模型项，绝不误伤 Orchestrator 或其他菜单
+      return !!el.querySelector("[data-model-base]");
+    };
+
+    const selectNativeModelByBase = (baseName, preferredEffortKey) => {
+      const ctrl = getModelController();
+      if (!ctrl) return false;
+      const group = getEffortGroupForBase(ctrl, baseName);
+      if (!group.length) return false;
+      const match = (preferredEffortKey && group.find(g => g.effortKey === preferredEffortKey))
+        || group.find(g => g.effortKey === "medium")
+        || group[0];
+      if (match) {
+        ctrl.setSelectedModel(match.opt);
+        return true;
+      }
+      return false;
+    };
+
+    const wireModelItemGuards = (menu) => {
+      const items = getDirectModelItems(menu);
+      for (const it of items) {
+        if (!isThinkingModelItem(it)) continue;
+        it.setAttribute("data-ag-thinking-model", "1");
+        if (it.dataset.agThinkingWired === "1") continue;
+        it.dataset.agThinkingWired = "1";
+
+        // 仅阻止一级思考模型项悬停弹出二级菜单（Orchestrator 二/三级菜单与 View Usage 完全不受影响）
+        const blockHover = (e) => {
+          e.stopImmediatePropagation();
+        };
+        it.addEventListener("pointerenter", blockHover, true);
+        it.addEventListener("pointerover", blockHover, true);
+        it.addEventListener("pointermove", blockHover, true);
+        it.addEventListener("mouseenter", blockHover, true);
+        it.addEventListener("mouseover", blockHover, true);
+
+        // 点击一级模型项直接调用原生 setSelectedModel 即时切换，并同步更新滑块
+        it.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          const ctrl = getModelController();
+          const curParsed = parseOptionLabel(ctrl?.selectedModel?.label);
+          const base = it.querySelector("[data-model-base]")?.getAttribute("data-model-base");
+          if (base) {
+            selectNativeModelByBase(base, curParsed.effortKey || "medium");
+            const existingBox = menu.querySelector("#ag-thinking-slider-box");
+            if (existingBox && typeof existingBox.__agSyncSlider === "function") {
+              requestAnimationFrame(() => existingBox.__agSyncSlider());
+            }
+          }
+        }, true);
+      }
+    };
+
+    // 隐藏原菜单底部可能残留的独立“思考”/“Thinking”入口节点，避免与 View Usage 重叠
+    const hideResidualThinkingEntries = (menu, usageItem) => {
+      const candidates = Array.from(menu.querySelectorAll("[role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio']"));
+      for (const el of candidates) {
+        if (el === usageItem) continue;
+        if (el.closest("#ag-thinking-slider-box")) continue;
+        if (el.getAttribute("data-testid") === "model-selector-orchestrator") continue;
+        if (el.querySelector("[data-model-base]")) continue;
+        const txt = (el.textContent || "").replace(/\s+/g, " ").trim();
+        if (/^(思考|思考等级|思考强度|Thinking|Thinking Level|Reasoning|Reasoning Effort)(\s|$)/i.test(txt)) {
+          el.setAttribute("data-ag-hidden-thinking-entry", "1");
+        }
+      }
+    };
+
+    const injectIntoModelMenu = (menu) => {
+      if (!menu || menu.hasAttribute("data-nested")) return;
+      const items = getDirectModelItems(menu);
+      const usageItem = items.find(el => /View Usage|查看用量/i.test(el.textContent || ""));
+      if (!usageItem) return;
+
+      menu.setAttribute("data-ag-thinking-slider", "1");
+      usageItem.setAttribute("data-ag-thinking-usage", "1");
+      if (usageItem.parentElement) {
+        usageItem.parentElement.setAttribute("data-ag-thinking-footer", "1");
+      }
+      hideResidualThinkingEntries(menu, usageItem);
+      wireModelItemGuards(menu);
+
+      const existing = menu.querySelector("#ag-thinking-slider-box");
+      if (existing) {
+        if (typeof existing.__agSyncSlider === "function") existing.__agSyncSlider();
+        return;
+      }
+
+      const box = document.createElement("div");
+      box.id = "ag-thinking-slider-box";
+      box.addEventListener("pointerdown", e => e.stopPropagation());
+      box.addEventListener("click", e => e.stopPropagation());
+
+      const header = document.createElement("div");
+      header.className = "ag-ts-header";
+
+      // 左侧闪电图标 ⚡：点击快速切换到最低思考强度（最快响应）
+      const fastBtn = document.createElement("button");
+      fastBtn.type = "button";
+      fastBtn.className = "ag-ts-side-btn";
+      fastBtn.title = "最快响应（最低档）";
+      fastBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 10-12h-7l0-8Z"/></svg>`;
+
+      // 中间双行居中：上方蓝色当前思考档位，下方模型名
+      const centerCol = document.createElement("div");
+      centerCol.className = "ag-ts-center";
+      const valEl = document.createElement("span");
+      valEl.className = "ag-ts-value";
+      const modelEl = document.createElement("span");
+      modelEl.className = "ag-ts-model";
+      centerCol.appendChild(valEl);
+      centerCol.appendChild(modelEl);
+
+      // 右侧顺时针重置图标 ↻：点击一键重置回默认档位（Medium）
+      const resetBtn = document.createElement("button");
+      resetBtn.type = "button";
+      resetBtn.className = "ag-ts-side-btn";
+      resetBtn.title = "重置为默认强度";
+      resetBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>`;
+
+      header.appendChild(fastBtn);
+      header.appendChild(centerCol);
+      header.appendChild(resetBtn);
+      box.appendChild(header);
+
+      const bodySlot = document.createElement("div");
+      box.appendChild(bodySlot);
+
+      let lastRenderedKey = "";
+      let activeCommit = null;
+      let activeDefaultIdx = 1;
+
+      fastBtn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+      fastBtn.addEventListener("click", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof activeCommit === "function") activeCommit(0);
+      });
+      resetBtn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); });
+      resetBtn.addEventListener("click", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof activeCommit === "function") activeCommit(activeDefaultIdx);
+      });
+
+      const renderSlider = (itemsGroup, activeEffortKey, baseName) => {
+        if (!itemsGroup || itemsGroup.length <= 1) {
+          box.dataset.collapsed = "1";
+          box.setAttribute("aria-hidden", "true");
+          activeCommit = null;
+          lastRenderedKey = `collapsed:${baseName || ""}`;
+          return;
+        }
+
+        const key = `${baseName}|${itemsGroup.map(g => g.effortKey).join(",")}|${activeEffortKey || ""}`;
+        box.dataset.collapsed = "0";
+        box.removeAttribute("aria-hidden");
+        if (key === lastRenderedKey && bodySlot.childElementCount > 0) return;
+        lastRenderedKey = key;
+
+        bodySlot.innerHTML = "";
+
+        let curIdx = itemsGroup.findIndex(g => g.effortKey === activeEffortKey);
+        const medIdx = itemsGroup.findIndex(g => g.effortKey === "medium");
+        activeDefaultIdx = medIdx >= 0 ? medIdx : Math.min(1, itemsGroup.length - 1);
+        if (curIdx < 0) curIdx = activeDefaultIdx;
+        valEl.textContent = itemsGroup[curIdx].display;
+        modelEl.textContent = baseName || "";
+
+        const area = document.createElement("div");
+        area.className = "ag-ts-slider-area";
+
+        const rail = document.createElement("div");
+        rail.className = "ag-ts-rail";
+        const fill = document.createElement("div");
+        fill.className = "ag-ts-fill";
+        rail.appendChild(fill);
+
+        const maxIdx = Math.max(1, itemsGroup.length - 1);
+        const dots = itemsGroup.map((_, i) => {
+          const dot = document.createElement("div");
+          dot.className = "ag-ts-dot";
+          const ratio = i / maxIdx;
+          dot.style.left = `calc(13px + (100% - 26px) * ${ratio})`;
+          rail.appendChild(dot);
+          return dot;
+        });
+
+        const thumb = document.createElement("div");
+        thumb.className = "ag-ts-thumb";
+        rail.appendChild(thumb);
+        area.appendChild(rail);
+
+        const commitIndex = (idx) => {
+          curIdx = idx;
+          setVisualAtRatio(idx / maxIdx, idx, true);
+          const freshCtrl = getModelController();
+          const chosen = itemsGroup[idx];
+          if (freshCtrl && chosen?.opt) {
+            lastRenderedKey = `${baseName}|${itemsGroup.map(g => g.effortKey).join(",")}|${chosen.effortKey}`;
+            // 原生即时切换，0ms 生效
+            freshCtrl.setSelectedModel(chosen.opt);
+          }
+        };
+        activeCommit = commitIndex;
+
+        const labelsWrap = document.createElement("div");
+        labelsWrap.className = "ag-ts-labels";
+        const lbls = itemsGroup.map((g, i) => {
+          const lbl = document.createElement("span");
+          lbl.className = "ag-ts-lbl";
+          lbl.textContent = g.display;
+          lbl.title = g.opt.label;
+          if (i === 0) {
+            lbl.style.left = "4px";
+            lbl.dataset.pos = "first";
+          } else if (i === itemsGroup.length - 1) {
+            lbl.style.left = "calc(100% - 4px)";
+            lbl.dataset.pos = "last";
+          } else {
+            const ratio = i / maxIdx;
+            lbl.style.left = `calc(13px + (100% - 26px) * ${ratio})`;
+          }
+          lbl.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          });
+          lbl.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            commitIndex(i);
+          });
+          labelsWrap.appendChild(lbl);
+          return lbl;
+        });
+
+        const setVisualAtRatio = (ratio, nearestIdx, animate = true) => {
+          const r = Math.max(0, Math.min(1, ratio));
+          if (!animate) {
+            fill.style.transition = "none";
+            thumb.style.transition = "none";
+          }
+          // 同心胶囊算法：26px 轨道高度、22px 白色圆钮，蓝条在任意位置都以 2px 均匀包裹圆钮
+          fill.style.width = `calc(26px + (100% - 26px) * ${r})`;
+          thumb.style.left = `calc(13px + (100% - 26px) * ${r})`;
+          if (!animate) {
+            thumb.getBoundingClientRect();
+            fill.style.transition = "";
+            thumb.style.transition = "";
+          }
+          dots.forEach((d, i) => { d.dataset.passed = (i / maxIdx) <= r + 0.005 ? "1" : "0"; });
+          lbls.forEach((l, i) => { l.dataset.active = i === nearestIdx ? "1" : "0"; });
+          const disp = itemsGroup[nearestIdx]?.display || "";
+          if (valEl.textContent !== disp) {
+            valEl.textContent = disp;
+            valEl.dataset.bump = "1";
+            setTimeout(() => { valEl.dataset.bump = "0"; }, 180);
+          }
+        };
+
+        setVisualAtRatio(curIdx / maxIdx, curIdx, false);
+
+        const ratioFromClientX = (clientX) => {
+          const rect = rail.getBoundingClientRect();
+          const usable = Math.max(1, rect.width - 26);
+          return Math.max(0, Math.min(1, (clientX - (rect.left + 13)) / usable));
+        };
+
+        let dragging = false;
+
+        area.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dragging = true;
+          area.dataset.dragging = "1";
+          try { area.setPointerCapture(e.pointerId); } catch {}
+          const r = ratioFromClientX(e.clientX);
+          setVisualAtRatio(r, Math.round(r * maxIdx), false);
+        });
+
+        area.addEventListener("pointermove", (e) => {
+          if (!dragging) return;
+          e.stopPropagation();
+          const r = ratioFromClientX(e.clientX);
+          setVisualAtRatio(r, Math.round(r * maxIdx), false);
+        });
+
+        const finishDrag = (e) => {
+          if (!dragging) return;
+          dragging = false;
+          area.dataset.dragging = "0";
+          try { area.releasePointerCapture(e.pointerId); } catch {}
+          const r = ratioFromClientX(e.clientX);
+          const chosenIdx = Math.round(r * maxIdx);
+          commitIndex(chosenIdx);
+        };
+
+        area.addEventListener("pointerup", finishDrag);
+        area.addEventListener("pointercancel", () => {
+          dragging = false;
+          area.dataset.dragging = "0";
+          setVisualAtRatio(curIdx / maxIdx, curIdx, true);
+        });
+
+        bodySlot.appendChild(area);
+        bodySlot.appendChild(labelsWrap);
+      };
+
+      const syncSlider = () => {
+        const freshCtrl = getModelController();
+        const curParsed = parseOptionLabel(freshCtrl?.selectedModel?.label);
+        const group = getEffortGroupForBase(freshCtrl, curParsed.base);
+        renderSlider(group, curParsed.effortKey, curParsed.base);
+      };
+      box.__agSyncSlider = syncSlider;
+      syncSlider();
+
+      const insertBeforeEl = usageItem.previousElementSibling && usageItem.previousElementSibling.getAttribute("role") === "separator"
+        ? usageItem.previousElementSibling
+        : usageItem;
+      insertBeforeEl.parentElement.insertBefore(box, insertBeforeEl);
+    };
+
+    const obs = new MutationObserver(() => {
+      document.querySelectorAll("[role='menu']").forEach(injectIntoModelMenu);
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    window.__agThinkingSliderObserver = obs;
+    document.querySelectorAll("[role='menu']").forEach(injectIntoModelMenu);
+  }
 }
 
 function hostDomEject() {
   document.querySelectorAll("style[id^='ag-']").forEach(s => s.remove());
+  if (window.__agThinkingSliderObserver) {
+    try { window.__agThinkingSliderObserver.disconnect(); } catch (e) {}
+    window.__agThinkingSliderObserver = null;
+  }
+  document.querySelectorAll("#ag-thinking-slider-box").forEach(el => el.remove());
+  document.querySelectorAll("[data-ag-thinking-slider]").forEach(el => el.removeAttribute("data-ag-thinking-slider"));
+  document.querySelectorAll("[data-ag-thinking-model]").forEach(el => el.removeAttribute("data-ag-thinking-model"));
+  document.querySelectorAll("[data-ag-thinking-footer]").forEach(el => el.removeAttribute("data-ag-thinking-footer"));
+  document.querySelectorAll("[data-ag-thinking-usage]").forEach(el => el.removeAttribute("data-ag-thinking-usage"));
+  document.querySelectorAll("[data-ag-hidden-thinking-entry]").forEach(el => el.removeAttribute("data-ag-hidden-thinking-entry"));
 
   const wp = document.getElementById("ag-wallpaper-container");
   if (wp) wp.remove();
@@ -943,10 +1704,14 @@ function hostDomGetState() {
   const wp = document.getElementById("ag-wallpaper-container");
   const mat = document.documentElement.getAttribute("data-ag-material");
   const docStyle = document.documentElement.style;
+  const isDark = document.body.classList.contains("theme-dark") ||
+    document.documentElement.classList.contains("dark") ||
+    !document.body.classList.contains("theme-light");
   return {
     isInjected: !!el,
     hasWallpaper: !!wp,
     material: mat || "none",
+    theme: isDark ? "dark" : "light",
     glassBlur: docStyle.getPropertyValue("--ag-glass-blur") || null,
     liquidBlur: docStyle.getPropertyValue("--ag-liquid-blur") || null
   };

@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
   <title>Theme & Wallpaper Control Center</title>
   <style>
     :root {
+      color-scheme: dark;
       --bg: transparent;
       --card-bg: rgba(255, 255, 255, 0.06);
       --card-border: rgba(255, 255, 255, 0.12);
@@ -30,7 +32,8 @@
     }
 
     @media (prefers-color-scheme: light) {
-      :root {
+      :root:not([data-theme="dark"]) {
+        color-scheme: light;
         --bg: transparent;
         --card-bg: rgba(255, 255, 255, 0.25);
         --card-border: rgba(255, 255, 255, 0.5);
@@ -49,6 +52,29 @@
         --accent-glow: rgba(0, 99, 153, 0.2);
         --toggle-active: var(--md-sys-color-primary);
       }
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: transparent;
+      --card-bg: rgba(255, 255, 255, 0.25);
+      --card-border: rgba(255, 255, 255, 0.5);
+      --card-hover: rgba(255, 255, 255, 0.38);
+      --text: #0f172a;
+      --text-muted: #334155;
+      --track-bg: rgba(0, 0, 0, 0.08);
+      --md-sys-color-primary: #006399;
+      --md-sys-color-on-primary: #ffffff;
+      --md-sys-color-primary-container: #cde5ff;
+      --md-sys-color-on-primary-container: #001d32;
+      --md-sys-color-outline: rgba(0, 0, 0, 0.2);
+      --accent: var(--md-sys-color-primary);
+      --accent-glow: rgba(0, 99, 153, 0.2);
+      --toggle-active: var(--md-sys-color-primary);
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
     }
 
     * {
@@ -660,6 +686,25 @@
         </div>
         <input type="range" id="slider-radius" min="0" max="48" value="16">
       </div>
+
+      <div class="control-group">
+        <div class="control-label-row">
+          <span>深色模式叠加压暗 (Dark Dim)</span>
+          <span class="val-badge" id="val-dark-dim">35%</span>
+        </div>
+        <input type="range" id="slider-dark-dim" min="0" max="85" value="35">
+      </div>
+
+      <div class="control-group" style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid rgba(128,128,128,0.16);">
+        <div>
+          <div style="font-size:13px; font-weight:500;">模型菜单思考等级滑块</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">在模型选择菜单的 View Usage 上方显示 Codex 风格思考滑块，免展开二级菜单。</div>
+        </div>
+        <label class="switch-label" style="flex-shrink:0;">
+          <input type="checkbox" id="switch-thinking-slider" checked>
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -1217,6 +1262,17 @@
       valGutter.innerText = sliderGutter.value + "px";
       sliderRadius.value = state.floating.radius;
       valRadius.innerText = sliderRadius.value + "px";
+      const sliderDarkDim = document.getElementById("slider-dark-dim");
+      const valDarkDim = document.getElementById("val-dark-dim");
+      if (sliderDarkDim && valDarkDim) {
+        const dd = state.floating.darkDim !== undefined ? state.floating.darkDim : 0.35;
+        sliderDarkDim.value = Math.round(dd * 100);
+        valDarkDim.innerText = sliderDarkDim.value + "%";
+      }
+      const swThink = document.getElementById("switch-thinking-slider");
+      if (swThink) {
+        swThink.checked = state.features?.thinkingSlider !== false;
+      }
 
       // 3. Wallpaper controls
       switchWallpaper.checked = state.wallpaper.enabled;
@@ -1640,6 +1696,25 @@
       emitChange();
     };
 
+    const sliderDarkDimEl = document.getElementById("slider-dark-dim");
+    const valDarkDimEl = document.getElementById("val-dark-dim");
+    if (sliderDarkDimEl && valDarkDimEl) {
+      sliderDarkDimEl.oninput = () => {
+        state.floating.darkDim = Number(sliderDarkDimEl.value) / 100;
+        valDarkDimEl.innerText = sliderDarkDimEl.value + "%";
+        emitChange();
+      };
+    }
+
+    const swThinkingSliderEl = document.getElementById("switch-thinking-slider");
+    if (swThinkingSliderEl) {
+      swThinkingSliderEl.onchange = () => {
+        if (!state.features) state.features = {};
+        state.features.thinkingSlider = !!swThinkingSliderEl.checked;
+        emitChange();
+      };
+    }
+
     switchWallpaper.onchange = () => {
       state.wallpaper.enabled = switchWallpaper.checked;
       syncUIFromState();
@@ -1995,6 +2070,7 @@
             if (cfg.floating.liquid) Object.assign(state.floating.liquid, cfg.floating.liquid);
           }
           if (cfg.wallpaper) Object.assign(state.wallpaper, cfg.wallpaper);
+          if (cfg.features) state.features = Object.assign({}, state.features || {}, cfg.features);
 
           if (!data.cdpConnected) {
             state.injection.lastError = `未检测到宿主调试端口 (Port ${data.cdpPort})。请使用官方包装器启动或添加 --remote-debugging-port=${data.cdpPort}`;
@@ -2002,6 +2078,11 @@
           } else {
             state.injection.enabled = !!(data.hostState?.isInjected ?? data.isInjected);
             state.injection.lastError = null;
+          }
+          if (data.hostState && data.hostState.theme) {
+            const t = data.hostState.theme === "dark" ? "dark" : "light";
+            document.documentElement.dataset.theme = t;
+            document.documentElement.style.colorScheme = t;
           }
         }
       } catch (e) {

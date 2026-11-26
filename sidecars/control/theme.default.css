@@ -125,7 +125,7 @@ body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data
 [data-ag-material="frosted"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
 :root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
 [data-ag-material="frosted"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
-  background: rgba(20, 24, 32, var(--ag-glass-opacity, 0.65)) !important;
+  background: rgba(14, 18, 26, calc(var(--ag-glass-opacity, 0.65) + var(--ag-dark-dim, 0.35) * (1 - var(--ag-glass-opacity, 0.65)))) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -156,7 +156,7 @@ body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data
 :root:not([data-ag-material="liquid"]) body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before,
 [data-ag-material="frosted"] body:not(.theme-light) .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child::before,
 [data-ag-material="frosted"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div.flex:first-child::before {
-  background: rgba(20, 24, 32, var(--ag-glass-opacity, 0.65)) !important;
+  background: rgba(14, 18, 26, calc(var(--ag-glass-opacity, 0.65) + var(--ag-dark-dim, 0.35) * (1 - var(--ag-glass-opacity, 0.65)))) !important;
 }
 
 /* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 浅色模式 */
@@ -218,12 +218,14 @@ body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data
 /* 材质二：苹果液态玻璃 (Apple Liquid Glass) - 深色模式 */
 [data-ag-material="liquid"] body.theme-dark .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]),
 [data-ag-material="liquid"] body:not(.theme-light) .agy-sheet > div.relative.flex.w-full.h-full > div:last-child:not([style*="width: 0px"]) {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.85)) 0%,
-    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.5)) 55%,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.35)) 100%
-  ) !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.45)) 0%,
+      rgba(16, 20, 30, calc(var(--ag-liquid-opacity, 0.25) * 1.15)) 55%,
+      rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.22)) 100%
+    ),
+    rgba(10, 14, 22, var(--ag-dark-dim, 0.35)) !important;
   backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
   -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
   border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45)) !important;
@@ -266,12 +268,14 @@ body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data
   border-radius: inherit !important;
   pointer-events: none !important;
   z-index: 0 !important;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.85)) 0%,
-    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.5)) 55%,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.35)) 100%
-  ) !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.45)) 0%,
+      rgba(16, 20, 30, calc(var(--ag-liquid-opacity, 0.25) * 1.15)) 55%,
+      rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.22)) 100%
+    ),
+    rgba(10, 14, 22, var(--ag-dark-dim, 0.35)) !important;
   backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
   -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) url(#ag-filter-liquid-refract) !important;
 }
@@ -648,7 +652,7 @@ iframe {
   div[role="status"]:has(> .toast-title),
   .toast-viewport > div
 ) {
-  background: rgba(24, 28, 38, var(--ag-glass-opacity, 0.65)) !important;
+  background: rgba(16, 20, 28, calc(var(--ag-glass-opacity, 0.65) + var(--ag-dark-dim, 0.35) * (1 - var(--ag-glass-opacity, 0.65)))) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
@@ -722,59 +726,68 @@ iframe {
 /* 10.3.1 多级嵌套菜单 ([role="menu"]) 独立 ::before 模糊层
    根因：Base UI 二级子菜单挂载在一级 [role="menu"] 内部，若一级菜单自身挂 backdrop-filter 会创建
    Chromium Backdrop Root，导致二级子菜单的 backdrop-filter 失效；改为 ::before 绘制背景与模糊，
-   使一、二、三级菜单互为兄弟伪元素，全部可独立采样下方背景与 iframe。 */
-:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+   使一、二、三、四级菜单互为兄弟伪元素，全部可独立即时采样下方背景与 iframe，且禁用入场动画导致的模糊延迟。
+   注意：绝不能对 [role="listbox"] 或浮动菜单强行覆盖 position: relative !important（会导致 @ / 弹出菜单进入文档流把输入框抬起）；
+   改用零特异性的 :where(...) 仅在元素本身为 static 时提供定位上下文。 */
+:where([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]) {
+  position: relative;
+}
+
+:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]) {
   background: transparent !important;
   background-image: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  position: relative !important;
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
 }
 
-:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) > :not([role="presentation"]) {
-  position: relative !important;
-  z-index: 1 !important;
+:where([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]) > :not([role="presentation"]) {
+  position: relative;
+  z-index: 1;
 }
 
-:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+:is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content])::before {
   content: "" !important;
   position: absolute !important;
   inset: 0 !important;
   border-radius: inherit !important;
   pointer-events: none !important;
   z-index: 0 !important;
+  will-change: backdrop-filter !important;
+  transform: translateZ(0) !important;
 }
 
 /* 菜单边框与投影：浅色毛玻璃 */
-:root:not([data-ag-material="liquid"]) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]),
-[data-ag-material="frosted"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+:root:not([data-ag-material="liquid"]) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]),
+[data-ag-material="frosted"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]) {
   border: 1px solid rgba(0, 0, 0, 0.09) !important;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
 }
 
-:root:not([data-ag-material="liquid"]) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before,
-[data-ag-material="frosted"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+:root:not([data-ag-material="liquid"]) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content])::before,
+[data-ag-material="frosted"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content])::before {
   background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.65)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
 }
 
 /* 菜单边框与投影：深色毛玻璃 */
-:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]),
-[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]),
+[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]) {
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.46) !important;
 }
 
-:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before,
-[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
-  background: rgba(24, 28, 38, var(--ag-glass-opacity, 0.65)) !important;
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content])::before,
+[data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content])::before {
+  background: rgba(16, 20, 28, calc(var(--ag-glass-opacity, 0.65) + var(--ag-dark-dim, 0.35) * (1 - var(--ag-glass-opacity, 0.65)))) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(190%) !important;
 }
 
 /* 菜单边框与投影：浅色液态玻璃 */
-[data-ag-material="liquid"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+[data-ag-material="liquid"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]) {
   border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.9)) !important;
   border-top: 1.5px solid rgba(255, 255, 255, var(--ag-liquid-specular, 0.75)) !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
@@ -785,7 +798,7 @@ iframe {
     inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 32px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
 }
 
-[data-ag-material="liquid"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
+[data-ag-material="liquid"] :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content])::before {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 1.0)) 0%,
@@ -797,7 +810,7 @@ iframe {
 }
 
 /* 菜单边框与投影：深色液态玻璃 */
-[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content]) {
+[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content]) {
   border: 1px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.45 + 0.12)) !important;
   border-top: 1.5px solid rgba(255, 255, 255, calc(var(--ag-liquid-specular, 0.75) * 0.85 + 0.12)) !important;
   box-shadow:
@@ -806,13 +819,15 @@ iframe {
     inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 32px) rgba(255, 255, 255, calc(var(--ag-liquid-inner-glow, 0.25) * 0.45)) !important;
 }
 
-[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content])::before {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.32 + 0.06)) 0%,
-    rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.2)) 55%,
-    rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.22 + 0.04)) 100%
-  ) !important;
+[data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is([role="menu"], [data-radix-menu-content], [data-radix-dropdown-menu-content], [data-radix-dropdown-menu-sub-content], [data-radix-context-menu-content], [data-radix-context-menu-sub-content], [data-radix-menubar-content])::before {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.32 + 0.06)) 0%,
+      rgba(20, 24, 34, calc(var(--ag-liquid-opacity, 0.25) * 1.2)) 55%,
+      rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.22 + 0.04)) 100%
+    ),
+    rgba(10, 14, 22, var(--ag-dark-dim, 0.35)) !important;
   backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
   -webkit-backdrop-filter: blur(var(--ag-liquid-blur, 8px)) saturate(var(--ag-liquid-saturate, 200%)) !important;
 }
@@ -1634,4 +1649,37 @@ body:not(.ag-floating-disabled) [data-split-panes] .agy-sheet[data-sheet-inset] 
 body:not(.ag-floating-disabled) [data-split-panes] .agy-sheet[data-sheet-inset] [data-tiling-pane]::after {
   display: none !important;
   content: none !important;
+}
+
+/* ========================================================
+   22. 内置浏览器标签页（browser-hole）玻璃与顶栏穿透修复
+   Antigravity 在内置浏览器标签页激活时会给 body 挂上
+   [data-has-browser-hole="true"]，并用原生实色 rule 覆盖顶栏、
+   中央会话区 [data-pane-id] 和地址栏，导致模糊层与透明感丢失。
+   这里将非 webview 洞口自身的容器恢复透明/玻璃质感，同时绝不遮挡
+   [data-browser-hole="true"] 本体。
+   ======================================================== */
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"] .browser-hole-opaque:not([data-has-browser-hole="true"]),
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"] [data-pane-id]:not([data-has-browser-hole="true"]),
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"] [data-tiling-pane]:not([data-has-browser-hole="true"]),
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"] [data-split-sash],
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"] .browser-hole-ancestor[data-has-browser-hole="true"] > :not([data-has-browser-hole="true"], [data-browser-hole]:not([data-browser-hole="false"]), .absolute, .fixed) {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* 保留原生 clip-path，仅去掉实色画布色环 */
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"]:not(.ag-floating-disabled) .agy-sheet[data-sheet-inset] :is([data-main-content-body], [data-side-panel-body]) {
+  box-shadow: 0 0 0 calc(var(--card-gap, 0.5rem) + var(--card-radius, 0.75rem)) transparent !important;
+}
+
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"] .browser-hole-ancestor[data-has-browser-hole="true"] > div.shrink-0.border-b {
+  background: rgba(255, 255, 255, 0.36) !important;
+  backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(160%) !important;
+}
+
+html[data-ag-wallpaper="on"] body[data-has-browser-hole="true"]:where(.theme-dark, :not(.theme-light)) .browser-hole-ancestor[data-has-browser-hole="true"] > div.shrink-0.border-b,
+html.dark[data-ag-wallpaper="on"] body[data-has-browser-hole="true"] .browser-hole-ancestor[data-has-browser-hole="true"] > div.shrink-0.border-b {
+  background: rgba(18, 22, 32, 0.44) !important;
 }
