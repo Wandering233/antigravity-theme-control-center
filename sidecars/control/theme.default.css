@@ -110,6 +110,8 @@ body:has([data-sash-handle][data-dragging], [data-testid="tiling-splitter"][data
   background: rgba(255, 255, 255, var(--ag-glass-opacity, 0.6)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(180%) !important;
+  will-change: backdrop-filter !important;
+  transform: translateZ(0) !important;
 }
 
 .agy-shell > div.flex-1 > div.relative.flex > div.flex:first-child > div,

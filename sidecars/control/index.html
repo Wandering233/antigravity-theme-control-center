@@ -534,6 +534,7 @@
     </div>
     <div class="hook-btn-row">
       <button class="btn-primary" id="btn-inject">注入以启用增强控制</button>
+      <button class="btn-secondary" id="btn-win-cdp" style="display: none;">一键开启 Windows CDP 调试端口</button>
       <button class="btn-secondary" id="btn-eject" style="display: none;">安全卸载 / 恢复官方原生</button>
     </div>
   </div>
@@ -733,11 +734,21 @@
     <div id="launch-perf-sub" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(128,128,128,0.16);">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
         <div>
-          <div style="font-size:13px; font-weight:500;">Vulkan 渲染后端（实验性）</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">从 ANGLE OpenGL 切为 Vulkan，可测试改善 Wayland 拖拽模糊闪烁；若黑屏可关闭并重启恢复。</div>
+          <div style="font-size:13px; font-weight:500;" id="launch-gpu-title">Vulkan 渲染后端（实验性）</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;" id="launch-gpu-desc">从 ANGLE OpenGL 切为 Vulkan，可测试改善 Wayland 拖拽模糊闪烁；若黑屏可关闭并重启恢复。</div>
         </div>
         <label class="switch-label" style="flex-shrink:0;">
           <input type="checkbox" id="switch-launch-vulkan">
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+      <div id="launch-perf-graphite-row" style="display:none; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:10px; border-top:1px dashed rgba(128,128,128,0.16);">
+        <div>
+          <div style="font-size:13px; font-weight:500;">Skia Graphite 渲染管线（实验性）</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">启用 Dawn GraphiteDawnD3D11 合成器替代 GaneshGL；若异常可关闭并重启恢复。</div>
+        </div>
+        <label class="switch-label" style="flex-shrink:0;">
+          <input type="checkbox" id="switch-launch-graphite">
           <span class="slider-toggle"></span>
         </label>
       </div>
@@ -1147,6 +1158,12 @@
         btnEject.style.display = "none";
       }
 
+      const btnWinCdp = document.getElementById("btn-win-cdp");
+      if (btnWinCdp) {
+        const isWin = navigator.userAgent.includes("Windows");
+        btnWinCdp.style.display = (isWin && !state.injection.enabled) ? "block" : "none";
+      }
+
       // If not injected, disable control cards
       const isInjected = state.injection.enabled;
       document.getElementById("card-floating").classList.toggle("disabled-group", !isInjected);
@@ -1352,8 +1369,8 @@
             state = "布局与材质均已应用";
           } else { cls = "ok"; state = "已生效"; }
         } else {
-          cls = s.optional ? "warn" : "bad";
-          state = s.optional ? "未匹配（可选）" : "未匹配";
+          cls = s.optional ? "ok" : "bad";
+          state = s.optional ? "当前未打开（可选，跳过）" : "未匹配";
         }
         item.className = "compat-item " + cls;
         const dot = document.createElement("span");
@@ -1450,6 +1467,35 @@
 
     document.getElementById("btn-audit-copy").onclick = copyAudit;
     document.getElementById("btn-audit-download").onclick = downloadAudit;
+
+    const btnWinCdp = document.getElementById("btn-win-cdp");
+    if (btnWinCdp) {
+      btnWinCdp.onclick = async () => {
+        btnWinCdp.disabled = true;
+        btnWinCdp.innerText = "正在配置快捷方式...";
+        try {
+          const res = await fetch("/api/win-enable-cdp", { method: "POST" });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.error || `HTTP ${res.status}`);
+          }
+          const patchedCount = (data.patched || []).length;
+          const alreadyCount = (data.already || []).length;
+          if (patchedCount > 0) {
+            hookDesc.innerHTML = `<span style="color:#22c55e; font-weight:600;">已更新 ${patchedCount} 个 Windows 快捷方式</span>（附加 <code>--remote-debugging-port=${data.port}</code>）。请完全退出并重新打开 Antigravity 以生效。`;
+          } else if (alreadyCount > 0) {
+            hookDesc.innerHTML = `<span style="color:#22c55e; font-weight:600;">快捷方式已包含 CDP 参数</span>（共 ${alreadyCount} 个）。如果当前仍无法注入，请完全退出并从快捷方式重新打开 Antigravity。`;
+          } else {
+            hookDesc.innerHTML = `<span style="color:#f59e0b; font-weight:600;">未在桌面、开始菜单或任务栏找到 Antigravity.exe 快捷方式</span>，请手动在启动参数中添加 <code>--remote-debugging-port=${data.port}</code>。`;
+          }
+        } catch (err) {
+          hookDesc.innerHTML = `<span style="color:#ef4444; font-weight:600;">配置失败：</span>${err.message}`;
+        } finally {
+          btnWinCdp.disabled = false;
+          btnWinCdp.innerText = "一键开启 Windows CDP 调试端口";
+        }
+      };
+    }
 
     btnInject.onclick = async () => {
       hookDesc.innerText = "正在通过 CDP 连接 Antigravity 宿主主窗口并安全校验与注入材质...";
@@ -1821,6 +1867,8 @@
     // ========================================================
     const switchLaunchPerf = document.getElementById("switch-launch-perf");
     const switchLaunchVulkan = document.getElementById("switch-launch-vulkan");
+    const switchLaunchGraphite = document.getElementById("switch-launch-graphite");
+    const launchPerfGraphiteRow = document.getElementById("launch-perf-graphite-row");
     const launchPerfSub = document.getElementById("launch-perf-sub");
     const launchPerfDesc = document.getElementById("launch-perf-desc");
     const launchPerfBanner = document.getElementById("launch-perf-banner");
@@ -1830,8 +1878,22 @@
       if (!data || !switchLaunchPerf) return;
       const lp = data.config || { enabled: false, vulkan: false };
       const rec = data.recommended || {};
+      const isWin = data.platform === "win32";
+      const gpuTitle = document.getElementById("launch-gpu-title");
+      const gpuDesc = document.getElementById("launch-gpu-desc");
+      if (gpuTitle && gpuDesc) {
+        if (isWin) {
+          gpuTitle.textContent = "D3D11 零拷贝与 GPU 光栅化加速";
+          gpuDesc.textContent = "强制启用 ANGLE D3D11、GPU 光栅化、零拷贝纹理与 HEVC 硬解，避免回退软件合成。";
+        } else {
+          gpuTitle.textContent = "Vulkan 渲染后端（实验性）";
+          gpuDesc.textContent = "从 ANGLE OpenGL 切为 Vulkan，可测试改善 Wayland 拖拽模糊闪烁；若黑屏可关闭并重启恢复。";
+        }
+      }
       switchLaunchPerf.checked = !!lp.enabled;
       if (switchLaunchVulkan) switchLaunchVulkan.checked = !!(lp.enabled && lp.vulkan);
+      if (switchLaunchGraphite) switchLaunchGraphite.checked = !!(lp.enabled && lp.graphite);
+      if (launchPerfGraphiteRow) launchPerfGraphiteRow.style.display = isWin ? "flex" : "none";
       if (launchPerfSub) launchPerfSub.style.display = lp.enabled ? "block" : "none";
 
       if (launchPerfDesc && rec.rasterThreads) {
@@ -1856,7 +1918,8 @@
         const parts = [];
         if (data.active.rasterThreads) parts.push(`${data.active.rasterThreads} 线程光栅`);
         if (data.active.maxOldSpaceMB) parts.push(`${data.active.maxOldSpaceMB}MB 堆`);
-        if (data.active.vulkan) parts.push("Vulkan");
+        if (data.active.vulkan) parts.push(isWin ? "D3D11 加速" : "Vulkan");
+        if (data.active.graphite) parts.push("SkiaGraphite");
         launchPerfBanner.textContent = `✓ 当前运行进程已生效${parts.length ? "（" + parts.join(" · ") + "）" : ""}`;
       } else {
         launchPerfBanner.style.display = "none";
@@ -1876,6 +1939,7 @@
       launchPerfBusy = true;
       if (switchLaunchPerf) switchLaunchPerf.disabled = true;
       if (switchLaunchVulkan) switchLaunchVulkan.disabled = true;
+      if (switchLaunchGraphite) switchLaunchGraphite.disabled = true;
       try {
         const res = await fetch("/api/launch-perf", {
           method: "POST",
@@ -1890,18 +1954,28 @@
         launchPerfBusy = false;
         if (switchLaunchPerf) switchLaunchPerf.disabled = false;
         if (switchLaunchVulkan) switchLaunchVulkan.disabled = false;
+        if (switchLaunchGraphite) switchLaunchGraphite.disabled = false;
       }
     }
 
     if (switchLaunchPerf) {
       switchLaunchPerf.onchange = () => {
         const on = !!switchLaunchPerf.checked;
-        updateLaunchPerf({ enabled: on, vulkan: on && !!(switchLaunchVulkan && switchLaunchVulkan.checked) });
+        updateLaunchPerf({
+          enabled: on,
+          vulkan: on && !!(switchLaunchVulkan && switchLaunchVulkan.checked),
+          graphite: on && !!(switchLaunchGraphite && switchLaunchGraphite.checked)
+        });
       };
     }
     if (switchLaunchVulkan) {
       switchLaunchVulkan.onchange = () => {
         updateLaunchPerf({ enabled: true, vulkan: !!switchLaunchVulkan.checked });
+      };
+    }
+    if (switchLaunchGraphite) {
+      switchLaunchGraphite.onchange = () => {
+        updateLaunchPerf({ enabled: true, graphite: !!switchLaunchGraphite.checked });
       };
     }
 

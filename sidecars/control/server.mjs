@@ -458,18 +458,6 @@ function hostDomAudit() {
       ? cs.backdropFilter
       : (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== "none") ? cs.webkitBackdropFilter : "none";
 
-    // 判定方式：
-    //   card     —— 吃到圆角 / 外边距 / 模糊，任一即可认为卡片化生效
-    //   position —— 规则用的是 top/left 偏移，检查 top 是否被改写
-    const top = parseFloat(cs.top);
-    let applied = true;
-    if (o.card) applied = radius > 0 || marginTop > 0 || backdrop !== "none";
-    else if (o.position) applied = !Number.isNaN(top) && top > 0;
-    // 折叠状态（如右侧面板收起时 width=0）不算失败
-    const collapsed = o.collapsible ? (width === 0) : false;
-
-    // 不能只看元素自身：左侧边栏和中央面板的材质画在 ::before 上。
-    // 元素自身 backdrop-filter:none 是刻意规避 Chromium 嵌套滤镜限制，并非材质缺失。
     const readPaint = (pseudo) => {
       const style = getComputedStyle(el, pseudo);
       const bd = style.backdropFilter && style.backdropFilter !== "none"
@@ -490,6 +478,19 @@ function hostDomAudit() {
     };
     const selfPaint = readPaint(null);
     const beforePaint = readPaint("::before");
+
+    // 判定方式：
+    //   card     —— 吃到圆角 / 外边距 / 自身或 ::before 模糊，任一即可认为卡片化生效
+    //   position —— 规则用的是 top/left 偏移，检查 top 是否被改写
+    const top = parseFloat(cs.top);
+    let applied = true;
+    if (o.card) {
+      applied = radius > 0 || marginTop > 0 || backdrop !== "none" || beforePaint.backdrop !== "none";
+    } else if (o.position) {
+      applied = !Number.isNaN(top) && top > 0;
+    }
+    // 折叠状态（如右侧面板收起时 width=0）不算失败
+    const collapsed = o.collapsible ? (width === 0) : false;
     const glassExpected = ["sidebar", "main-pane", "aux-pane"].includes(id);
     const glassFilter = [selfPaint.backdrop, beforePaint.backdrop]
       .some((v) => v !== "none" && /blur\(|ag-filter-liquid-refract/.test(v));
@@ -583,6 +584,7 @@ function hostDomAudit() {
       };
       const wpEl = document.getElementById("ag-wallpaper-container");
       const wpImg = document.getElementById("ag-wallpaper-img");
+      const wpVideo = document.getElementById("ag-wallpaper-video");
       return {
         html: bg(document.documentElement),
         body: bg(document.body),
@@ -592,7 +594,13 @@ function hostDomAudit() {
           layerZ: wpEl ? getComputedStyle(wpEl).zIndex : null,
           imgSrc: wpImg ? String(wpImg.getAttribute("src") || "").slice(0, 80) : null,
           imgLoaded: wpImg ? (wpImg.complete && wpImg.naturalWidth > 0) : false,
-          imgSize: wpImg && wpImg.naturalWidth ? wpImg.naturalWidth + "x" + wpImg.naturalHeight : null
+          imgSize: wpImg && wpImg.naturalWidth ? wpImg.naturalWidth + "x" + wpImg.naturalHeight : null,
+          videoSrc: wpVideo ? String(wpVideo.getAttribute("src") || "").slice(0, 120) : null,
+          videoReadyState: wpVideo ? wpVideo.readyState : null,
+          videoNetworkState: wpVideo ? wpVideo.networkState : null,
+          videoPaused: wpVideo ? wpVideo.paused : null,
+          videoSize: wpVideo && wpVideo.videoWidth ? wpVideo.videoWidth + "x" + wpVideo.videoHeight : null,
+          videoError: wpVideo && wpVideo.error ? wpVideo.error.code : null
         }
       };
     })(),
@@ -601,7 +609,8 @@ function hostDomAudit() {
       total: required.length,
       applied: required.filter((s) => s.applied).length,
       collapsed: S.filter((s) => s.collapsed).map((s) => s.label),
-      absent: S.filter((s) => !s.present).map((s) => s.label),
+      absent: S.filter((s) => !s.present && !s.optional).map((s) => s.label),
+      optionalAbsent: S.filter((s) => !s.present && s.optional).map((s) => s.label),
       notApplied: required.filter((s) => !s.applied).map((s) => s.label),
       materialMissing: required.filter((s) => s.glassExpected && !s.glassFilter).map((s) => s.label)
     },
@@ -783,6 +792,12 @@ function hostDomApply(config, sidecarPort) {
     const video = document.getElementById("ag-wallpaper-video");
     const overlay = document.getElementById("ag-wallpaper-overlay");
 
+    const mediaBlur = Number(wp.blur || 0);
+    const mediaBrightness = wp.brightness ?? 1;
+    const mediaFilter = (mediaBlur > 0 || mediaBrightness !== 1)
+      ? `blur(${mediaBlur}px) brightness(${mediaBrightness})`
+      : "none";
+
     if (img) {
       img.style.position = "absolute";
       img.style.top = "0";
@@ -790,7 +805,7 @@ function hostDomApply(config, sidecarPort) {
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.objectFit = wp.fit || "cover";
-      img.style.filter = `blur(${wp.blur || 0}px) brightness(${wp.brightness ?? 1})`;
+      img.style.filter = mediaFilter;
       img.style.transform = "scale(1.05)";
     }
 
@@ -801,9 +816,11 @@ function hostDomApply(config, sidecarPort) {
       video.style.width = "100%";
       video.style.height = "100%";
       video.style.objectFit = wp.fit || "cover";
-      video.style.filter = `blur(${wp.blur || 0}px) brightness(${wp.brightness ?? 1})`;
-      video.style.transform = "scale(1.05)";
+      video.style.filter = mediaFilter;
+      video.style.willChange = "transform";
+      video.style.transform = mediaBlur > 0 ? "translateZ(0) scale(1.05)" : "translateZ(0)";
     }
+    container.style.contain = "strict";
 
     if (overlay) {
       overlay.style.position = "absolute";
@@ -818,7 +835,10 @@ function hostDomApply(config, sidecarPort) {
         return rawUrl;
       }
       let clean = rawUrl;
-      if (clean.startsWith("file://")) clean = clean.slice(7);
+      if (clean.startsWith("file://")) {
+        clean = clean.slice(7);
+        if (/^\/[A-Za-z]:[\\/]/.test(clean)) clean = clean.slice(1);
+      }
       return `http://127.0.0.1:${sidecarPort}/api/media?file=${encodeURIComponent(clean)}`;
     }
 
@@ -838,10 +858,43 @@ function hostDomApply(config, sidecarPort) {
         video.defaultMuted = true;
         video.loop = true;
         video.playsInline = true;
-        if (video.src !== resolvedUrl) {
+        video.preload = "auto";
+        video.disableRemotePlayback = true;
+        if (video.dataset.agSourceUrl !== resolvedUrl) {
+          video.dataset.agSourceUrl = resolvedUrl;
+          if (video.dataset.agBlobUrl) {
+            try { URL.revokeObjectURL(video.dataset.agBlobUrl); } catch (e) {}
+            delete video.dataset.agBlobUrl;
+          }
           video.src = resolvedUrl;
+          if (resolvedUrl.includes("/api/media?")) {
+            const targetUrl = resolvedUrl;
+            fetch(targetUrl)
+              .then((r) => {
+                if (!r.ok) return null;
+                const len = Number(r.headers.get("content-length") || 0);
+                if (len > 512 * 1024 * 1024) return null;
+                return r.blob();
+              })
+              .then((blob) => {
+                if (!blob || video.dataset.agSourceUrl !== targetUrl) return;
+                const blobUrl = URL.createObjectURL(blob);
+                const t = video.currentTime || 0;
+                video.dataset.agBlobUrl = blobUrl;
+                video.src = blobUrl;
+                if (t > 0.1) {
+                  video.addEventListener("loadedmetadata", () => {
+                    try { video.currentTime = t; } catch (e) {}
+                  }, { once: true });
+                }
+                video.play().catch(() => {});
+              })
+              .catch(() => {});
+          }
         }
-        video.play().catch(() => {});
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
       }
     } else if (wp.type === "image") {
       if (video) {
@@ -939,8 +992,55 @@ function computeRecommendedLaunchPerf() {
   return { cpuThreads, totalMemGB, rasterThreads, maxOldSpaceMB };
 }
 
+function runPowerShellJson(psScript) {
+  const encoded = Buffer.from(psScript, "utf16le").toString("base64");
+  return new Promise((resolve, reject) => {
+    const child = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", encoded], {
+      windowsHide: true
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", d => { stdout += d.toString(); });
+    child.stderr.on("data", d => { stderr += d.toString(); });
+    child.on("error", reject);
+    child.on("close", code => {
+      if (code !== 0 && !stdout.trim()) {
+        return reject(new Error(stderr.trim() || `PowerShell exited with code ${code}`));
+      }
+      try {
+        resolve(JSON.parse(stdout.trim() || "{}"));
+      } catch (e) {
+        reject(new Error(`PowerShell JSON 解析失败: ${e.message}`));
+      }
+    });
+  });
+}
+
 async function detectRunningHostFlags() {
-  const active = { detected: false, rasterThreads: null, maxOldSpaceMB: null, vulkan: false, raw: "" };
+  const active = { detected: false, rasterThreads: null, maxOldSpaceMB: null, vulkan: false, graphite: false, raw: "" };
+  if (process.platform === "win32") {
+    try {
+      const data = await runPowerShellJson(`
+$ErrorActionPreference = 'SilentlyContinue'
+$proc = Get-CimInstance Win32_Process -Filter "Name = 'Antigravity.exe'" | Where-Object {
+  $_.CommandLine -and ($_.CommandLine -notmatch '--type=') -and ($_.CommandLine -notmatch 'register_loader\\.js')
+} | Select-Object -First 1
+[PSCustomObject]@{ cmd = if ($proc) { $proc.CommandLine } else { "" } } | ConvertTo-Json -Compress
+`);
+      const raw = String(data?.cmd || "").trim();
+      if (raw) {
+        active.detected = true;
+        active.raw = raw;
+        const mRaster = raw.match(/--num-raster-threads=(\d+)/);
+        if (mRaster) active.rasterThreads = Number(mRaster[1]);
+        const mHeap = raw.match(/--max-old-space-size=(\d+)/);
+        if (mHeap) active.maxOldSpaceMB = Number(mHeap[1]);
+        active.vulkan = /--enable-features=[^\s]*Vulkan/.test(raw) || /--use-angle=d3d11/.test(raw);
+        active.graphite = /--enable-skia-graphite/.test(raw) || /--enable-features=[^\s]*SkiaGraphite/.test(raw);
+      }
+    } catch {}
+    return active;
+  }
   if (process.platform !== "linux") return active;
   try {
     const entries = await readdir("/proc");
@@ -970,36 +1070,97 @@ function buildLaunchCliArgs(launchPerf, rec) {
   if (launchPerf && launchPerf.enabled) {
     args.push(`--num-raster-threads=${rec.rasterThreads}`);
     args.push(`--js-flags="--max-old-space-size=${rec.maxOldSpaceMB}"`);
-    if (launchPerf.vulkan) {
+    if (process.platform === "win32") {
+      const features = [];
+      if (launchPerf.vulkan) {
+        args.push(`--use-gl=angle --use-angle=d3d11 --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy`);
+        features.push("PlatformHEVCDecoderSupport");
+      }
+      if (launchPerf.graphite) {
+        args.push(`--enable-skia-graphite`);
+        features.push("SkiaGraphite");
+      }
+      if (features.length > 0) {
+        args.push(`--enable-features=${features.join(",")}`);
+      }
+    } else if (launchPerf.vulkan) {
       args.push(`--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE`);
     }
   }
   return args;
 }
 
+async function inspectWindowsShortcuts() {
+  const data = await runPowerShellJson(`
+$ErrorActionPreference = 'SilentlyContinue'
+$wsh = New-Object -ComObject WScript.Shell
+$roots = @(
+  [Environment]::GetFolderPath('Desktop'),
+  [Environment]::GetFolderPath('CommonDesktopDirectory'),
+  [Environment]::GetFolderPath('StartMenu'),
+  [Environment]::GetFolderPath('CommonStartMenu'),
+  (Join-Path $env:APPDATA 'Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar')
+) | Where-Object { $_ -and (Test-Path $_) }
+
+$items = @()
+foreach ($root in $roots) {
+  Get-ChildItem -Path $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+    try {
+      $sc = $wsh.CreateShortcut($_.FullName)
+      if ($sc.TargetPath -and ($sc.TargetPath -match 'Antigravity\\.exe$')) {
+        $items += [PSCustomObject]@{ path = $_.FullName; args = ($sc.Arguments | Out-String).Trim() }
+      }
+    } catch {}
+  }
+}
+[PSCustomObject]@{ items = $items } | ConvertTo-Json -Depth 3 -Compress
+`);
+  const items = Array.isArray(data?.items) ? data.items : (data?.items ? [data.items] : []);
+  return items;
+}
+
 async function inspectLaunchPerfStatus(cfg) {
   const rec = computeRecommendedLaunchPerf();
-  const lp = Object.assign({ enabled: false, vulkan: false }, cfg?.launchPerf || {});
-  const supported = process.platform === "linux";
+  const lp = Object.assign({ enabled: false, vulkan: false, graphite: false }, cfg?.launchPerf || {});
+  const isWin = process.platform === "win32";
+  const supported = process.platform === "linux" || isWin;
   let wrapperText = "";
   let hasWrapper = false;
-  if (supported && existsSync(WRAPPER_PATH)) {
+  let wrapperPath = process.platform === "linux" ? WRAPPER_PATH : null;
+
+  if (process.platform === "linux" && existsSync(WRAPPER_PATH)) {
     hasWrapper = true;
     try { wrapperText = await readFile(WRAPPER_PATH, "utf8"); } catch {}
+  } else if (isWin) {
+    try {
+      const shortcuts = await inspectWindowsShortcuts();
+      if (shortcuts.length > 0) {
+        hasWrapper = true;
+        wrapperPath = `Windows 快捷方式 (${shortcuts.length} 个)`;
+        wrapperText = shortcuts.map(s => s.args || "").join("\n");
+      } else {
+        wrapperPath = "Windows 快捷方式";
+      }
+    } catch {
+      wrapperPath = "Windows 快捷方式";
+    }
   }
   const wrapperHasPerf = /--num-raster-threads=/.test(wrapperText) || /--max-old-space-size=/.test(wrapperText);
-  const wrapperHasVulkan = /--enable-features=[^\n]*Vulkan/.test(wrapperText);
+  const wrapperHasVulkan = /--enable-features=[^\n]*Vulkan/.test(wrapperText) || /--use-angle=d3d11/.test(wrapperText);
+  const wrapperHasGraphite = /--enable-skia-graphite/.test(wrapperText) || /--enable-features=[^\n]*SkiaGraphite/.test(wrapperText);
   // 若配置从未显式设置过，但本机包装器已存在性能参数，自动同步显示状态
   if (cfg && cfg.launchPerf === undefined && wrapperHasPerf) {
     lp.enabled = true;
     lp.vulkan = wrapperHasVulkan;
+    lp.graphite = wrapperHasGraphite;
   }
 
   const active = await detectRunningHostFlags();
   const activeHasPerf = !!(active.rasterThreads || active.maxOldSpaceMB);
   const needsRestart = supported && active.detected && (
     (lp.enabled !== activeHasPerf) ||
-    (lp.enabled && lp.vulkan !== active.vulkan)
+    (lp.enabled && lp.vulkan !== active.vulkan) ||
+    (lp.enabled && isWin && lp.graphite !== active.graphite)
   );
 
   const previewArgs = buildLaunchCliArgs(lp, rec)
@@ -1009,21 +1170,162 @@ async function inspectLaunchPerfStatus(cfg) {
   return {
     supported,
     platform: process.platform,
-    wrapperPath: supported ? WRAPPER_PATH : null,
+    wrapperPath,
     hasWrapper,
     wrapperHasPerf,
     wrapperHasVulkan,
+    wrapperHasGraphite,
     config: lp,
     recommended: rec,
     active,
     needsRestart,
-    cliPreview: `antigravity ${previewArgs}`
+    cliPreview: `${isWin ? "Antigravity.exe" : "antigravity"} ${previewArgs}`
+  };
+}
+
+async function patchWindowsShortcuts(port = CDP_PORT) {
+  const psScript = `
+$ErrorActionPreference = 'SilentlyContinue'
+$wsh = New-Object -ComObject WScript.Shell
+$roots = @(
+  [Environment]::GetFolderPath('Desktop'),
+  [Environment]::GetFolderPath('CommonDesktopDirectory'),
+  [Environment]::GetFolderPath('StartMenu'),
+  [Environment]::GetFolderPath('CommonStartMenu'),
+  (Join-Path $env:APPDATA 'Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar')
+) | Where-Object { $_ -and (Test-Path $_) }
+
+$patched = @()
+$already = @()
+foreach ($root in $roots) {
+  Get-ChildItem -Path $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+    try {
+      $sc = $wsh.CreateShortcut($_.FullName)
+      if ($sc.TargetPath -and ($sc.TargetPath -match 'Antigravity\\.exe$')) {
+        if ($sc.Arguments -match '--remote-debugging-port=') {
+          $already += $_.FullName
+        } else {
+          $sc.Arguments = ("$($sc.Arguments) --remote-debugging-port=${port}").Trim()
+          $sc.Save()
+          $patched += $_.FullName
+        }
+      }
+    } catch {}
+  }
+}
+[PSCustomObject]@{
+  patched = $patched
+  already = $already
+} | ConvertTo-Json -Compress
+`;
+  const encoded = Buffer.from(psScript, "utf16le").toString("base64");
+  return new Promise((resolve, reject) => {
+    const child = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", encoded], {
+      windowsHide: true
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", d => { stdout += d.toString(); });
+    child.stderr.on("data", d => { stderr += d.toString(); });
+    child.on("error", reject);
+    child.on("close", code => {
+      if (code !== 0 && !stdout.trim()) {
+        return reject(new Error(stderr.trim() || `PowerShell exited with code ${code}`));
+      }
+      try {
+        const parsed = JSON.parse(stdout.trim() || "{}");
+        const patched = Array.isArray(parsed.patched) ? parsed.patched : (parsed.patched ? [parsed.patched] : []);
+        const already = Array.isArray(parsed.already) ? parsed.already : (parsed.already ? [parsed.already] : []);
+        resolve({ patched, already, port });
+      } catch (e) {
+        reject(new Error(`解析快捷方式结果失败: ${e.message}`));
+      }
+    });
+  });
+}
+
+async function applyWindowsLaunchPerf(launchPerf, port = CDP_PORT) {
+  const rec = computeRecommendedLaunchPerf();
+  const perfFlags = [];
+  if (launchPerf && launchPerf.enabled) {
+    perfFlags.push(`--num-raster-threads=${rec.rasterThreads}`);
+    perfFlags.push(`--js-flags="--max-old-space-size=${rec.maxOldSpaceMB}"`);
+    const features = [];
+    if (launchPerf.vulkan) {
+      perfFlags.push(`--use-gl=angle`);
+      perfFlags.push(`--use-angle=d3d11`);
+      perfFlags.push(`--ignore-gpu-blocklist`);
+      perfFlags.push(`--enable-gpu-rasterization`);
+      perfFlags.push(`--enable-zero-copy`);
+      features.push("PlatformHEVCDecoderSupport");
+    }
+    if (launchPerf.graphite) {
+      perfFlags.push(`--enable-skia-graphite`);
+      features.push("SkiaGraphite");
+    }
+    if (features.length > 0) {
+      perfFlags.push(`--enable-features=${features.join(",")}`);
+    }
+  }
+  const appendStr = perfFlags.join(" ");
+  const data = await runPowerShellJson(`
+$ErrorActionPreference = 'SilentlyContinue'
+$wsh = New-Object -ComObject WScript.Shell
+$roots = @(
+  [Environment]::GetFolderPath('Desktop'),
+  [Environment]::GetFolderPath('CommonDesktopDirectory'),
+  [Environment]::GetFolderPath('StartMenu'),
+  [Environment]::GetFolderPath('CommonStartMenu'),
+  (Join-Path $env:APPDATA 'Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar')
+) | Where-Object { $_ -and (Test-Path $_) }
+
+$updated = @()
+foreach ($root in $roots) {
+  Get-ChildItem -Path $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+    try {
+      $sc = $wsh.CreateShortcut($_.FullName)
+      if ($sc.TargetPath -and ($sc.TargetPath -match 'Antigravity\\.exe$')) {
+        $args = ($sc.Arguments | Out-String).Trim()
+        $args = $args -replace '--num-raster-threads=\\d+', ''
+        $args = $args -replace '--js-flags="[^"]*--max-old-space-size=\\d+[^"]*"', ''
+        $args = $args -replace '--enable-features=[^\\s]*(?:Vulkan|PlatformHEVCDecoderSupport|SkiaGraphite)[^\\s]*', ''
+        $args = $args -replace '--enable-skia-graphite', ''
+        $args = $args -replace '--use-gl=angle', ''
+        $args = $args -replace '--use-angle=d3d11', ''
+        $args = $args -replace '--ignore-gpu-blocklist', ''
+        $args = $args -replace '--enable-gpu-rasterization', ''
+        $args = $args -replace '--enable-zero-copy', ''
+        $args = ($args -replace '\\s+', ' ').Trim()
+        if ($args -notmatch '--remote-debugging-port=') {
+          $args = ("$args --remote-debugging-port=${port}").Trim()
+        }
+        $extra = '${appendStr}'
+        if ($extra) {
+          $args = ("$args $extra").Trim()
+        }
+        $sc.Arguments = $args
+        $sc.Save()
+        $updated += $_.FullName
+      }
+    } catch {}
+  }
+}
+[PSCustomObject]@{ updated = $updated } | ConvertTo-Json -Compress
+`);
+  const updatedList = Array.isArray(data?.updated) ? data.updated : (data?.updated ? [data.updated] : []);
+  return {
+    updated: updatedList.length > 0,
+    paths: updatedList,
+    reason: updatedList.length === 0 ? "未找到 Antigravity.exe 快捷方式" : undefined
   };
 }
 
 async function applyLaunchWrapper(launchPerf) {
+  if (process.platform === "win32") {
+    return applyWindowsLaunchPerf(launchPerf, CDP_PORT);
+  }
   if (process.platform !== "linux") {
-    return { updated: false, reason: "当前仅 Linux 自动写入启动包装器，其他平台请手动附加下方启动参数" };
+    return { updated: false, reason: "当前仅 Linux / Windows 自动写入启动参数，其他平台请手动附加下方启动参数" };
   }
   const rec = computeRecommendedLaunchPerf();
   const realBin = existsSync("/usr/bin/antigravity")
@@ -1097,6 +1399,7 @@ function normalizeLocalPath(raw) {
   let p = String(raw).trim();
   if (p.startsWith("file://")) {
     try { p = decodeURIComponent(p.slice(7)); } catch { p = p.slice(7); }
+    if (/^\/[A-Za-z]:[\\/]/.test(p)) p = p.slice(1);
   }
   if (p.startsWith("~")) p = join(os.homedir(), p.slice(1));
   return p;
@@ -1122,7 +1425,7 @@ async function checkMediaFile(rawPath) {
     return out;
   }
   try {
-    access(filePath, FS_CONSTANTS.R_OK);
+    await access(filePath, FS_CONSTANTS.R_OK);
     out.readable = true;
   } catch (e) {
     out.reason = "没有读取权限";
@@ -1135,8 +1438,71 @@ async function checkMediaFile(rawPath) {
   return out;
 }
 
-// 用原生 GTK 对话框（zenity）取绝对路径 —— 浏览器 <input type=file> 拿不到完整路径
+function pickWithWindowsDialog(kind) {
+  const title = kind === "video" ? "选择动态壁纸视频" : "选择壁纸图片";
+  const filter = kind === "video"
+    ? "视频文件 (*.mp4;*.webm;*.mov;*.m4v;*.mkv;*.avi;*.ogv)|*.mp4;*.webm;*.mov;*.m4v;*.mkv;*.avi;*.ogv|所有文件 (*.*)|*.*"
+    : "图片文件 (*.jpg;*.jpeg;*.png;*.webp;*.gif;*.bmp;*.avif;*.svg)|*.jpg;*.jpeg;*.png;*.webp;*.gif;*.bmp;*.avif;*.svg|所有文件 (*.*)|*.*";
+  const initialDir = kind === "video" ? join(os.homedir(), "Videos") : join(os.homedir(), "Pictures");
+  const safeInit = existsSync(initialDir) ? initialDir : os.homedir();
+
+  const psScript = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Windows.Forms
+$owner = New-Object System.Windows.Forms.Form -Property @{ TopMost = $true; ShowInTaskbar = $false; WindowState = 'Minimized' }
+$dlg = New-Object System.Windows.Forms.OpenFileDialog
+$dlg.Title = '${title}'
+$dlg.Filter = '${filter}'
+$dlg.InitialDirectory = '${safeInit.replace(/'/g, "''")}'
+$dlg.Multiselect = $false
+$res = $dlg.ShowDialog($owner)
+$owner.Dispose()
+if ($res -eq [System.Windows.Forms.DialogResult]::OK -and $dlg.FileName) {
+  [PSCustomObject]@{ ok = $true; path = $dlg.FileName } | ConvertTo-Json -Compress
+} else {
+  [PSCustomObject]@{ ok = $false; code = 'CANCELLED' } | ConvertTo-Json -Compress
+}
+`;
+  const encoded = Buffer.from(psScript, "utf16le").toString("base64");
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn("powershell.exe", ["-STA", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded], {
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+    } catch (e) {
+      return resolve({ ok: false, code: "NO_DIALOG", error: "无法启动 Windows 文件选择框：" + e.message });
+    }
+
+    let out = "";
+    let errOut = "";
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; clearTimeout(timer); resolve(v); } };
+    const timer = setTimeout(() => {
+      try { child.kill(); } catch {}
+      done({ ok: false, code: "TIMEOUT", error: "对话框等待超时" });
+    }, 10 * 60 * 1000);
+
+    child.stdout.on("data", (d) => { out += d.toString("utf8"); });
+    child.stderr.on("data", (d) => { errOut += d.toString("utf8"); });
+    child.on("error", (e) => done({ ok: false, code: "DIALOG_FAILED", error: e.message }));
+    child.on("close", (code) => {
+      try {
+        const parsed = JSON.parse(out.trim() || "{}");
+        if (parsed && typeof parsed.ok === "boolean") return done(parsed);
+      } catch {}
+      if (code === 0) return done({ ok: false, code: "CANCELLED" });
+      done({ ok: false, code: "DIALOG_FAILED", error: errOut.trim() || `PowerShell 退出码 ${code}` });
+    });
+  });
+}
+
+// 用原生对话框（Windows: OpenFileDialog / Linux: zenity）取绝对路径 —— 浏览器 <input type=file> 拿不到完整路径
 function pickWithNativeDialog(kind) {
+  if (process.platform === "win32") {
+    return pickWithWindowsDialog(kind);
+  }
   return new Promise((resolve) => {
     const filters = kind === "video"
       ? ["--file-filter=视频文件 | *.mp4 *.webm *.mov *.m4v *.mkv *.avi", "--file-filter=所有文件 | *"]
@@ -1541,12 +1907,16 @@ const server = createServer(async (req, res) => {
       for await (const chunk of req) body += chunk;
       const patch = JSON.parse(body || "{}");
       const cfg = await getOrCreateConfig();
-      const prev = Object.assign({ enabled: false, vulkan: false }, cfg.launchPerf || {});
+      const prev = Object.assign({ enabled: false, vulkan: false, graphite: false }, cfg.launchPerf || {});
       const next = {
         enabled: patch.enabled !== undefined ? !!patch.enabled : prev.enabled,
-        vulkan: patch.vulkan !== undefined ? !!patch.vulkan : prev.vulkan
+        vulkan: patch.vulkan !== undefined ? !!patch.vulkan : prev.vulkan,
+        graphite: patch.graphite !== undefined ? !!patch.graphite : prev.graphite
       };
-      if (!next.enabled) next.vulkan = false;
+      if (!next.enabled) {
+        next.vulkan = false;
+        next.graphite = false;
+      }
       cfg.launchPerf = next;
       await saveConfig(cfg);
       const writeRes = await applyLaunchWrapper(next);
@@ -1555,6 +1925,24 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: true, writeRes, ...status }));
     } catch (e) {
       res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
+  // API: Stream local video / image media file
+  if (url.pathname === "/api/win-enable-cdp" && req.method === "POST") {
+    if (process.platform !== "win32") {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "仅支持 Windows 平台" }));
+      return;
+    }
+    try {
+      const result = await patchWindowsShortcuts(CDP_PORT);
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ ok: true, ...result }));
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: false, error: e.message }));
     }
     return;
@@ -1585,6 +1973,8 @@ const server = createServer(async (req, res) => {
       const stats = await stat(filePath);
       const ext = extname(filePath).toLowerCase();
       const mime = MIME_TYPES[ext] || "application/octet-stream";
+      const etag = `"${stats.size}-${Math.trunc(stats.mtimeMs)}"`;
+      const lastModified = stats.mtime.toUTCString();
       const range = req.headers.range;
 
       if (range) {
@@ -1602,16 +1992,28 @@ const server = createServer(async (req, res) => {
           "Content-Range": `bytes ${start}-${safeEnd}/${stats.size}`,
           "Accept-Ranges": "bytes",
           "Content-Length": chunksize,
-          "Content-Type": mime
+          "Content-Type": mime,
+          "ETag": etag,
+          "Last-Modified": lastModified,
+          "Cache-Control": "private, max-age=300"
         });
-        createReadStream(filePath, { start, end: safeEnd }).pipe(res);
+        const stream = createReadStream(filePath, { start, end: safeEnd });
+        res.on("close", () => stream.destroy());
+        stream.on("error", () => { if (!res.headersSent) res.writeHead(500); res.end(); });
+        stream.pipe(res);
       } else {
         res.writeHead(200, {
           "Content-Length": stats.size,
           "Accept-Ranges": "bytes",
-          "Content-Type": mime
+          "Content-Type": mime,
+          "ETag": etag,
+          "Last-Modified": lastModified,
+          "Cache-Control": "private, max-age=300"
         });
-        createReadStream(filePath).pipe(res);
+        const stream = createReadStream(filePath);
+        res.on("close", () => stream.destroy());
+        stream.on("error", () => { if (!res.headersSent) res.writeHead(500); res.end(); });
+        stream.pipe(res);
       }
     } catch (e) {
       res.writeHead(500, { "Content-Type": "application/json" });
@@ -1682,19 +2084,25 @@ server.listen(PORT, "127.0.0.1", async () => {
   await recordSidecarInfo();
   const cfg = await getOrCreateConfig();
 
-  // On sidecar boot: if injection was previously enabled, automatically reconnect & restore theme
-  setTimeout(async () => {
-    try {
-      const cdpOk = await cdp.connect();
-      if (cdpOk && cfg.injection && cfg.injection.enabled === true) {
-        const userCSS = await getEffectiveCSS();
-        await cdp.evaluate(hostDomInject, userCSS, cfg, PORT);
-        console.log("[CDP] Automatically restored theme injection on startup");
+  // On sidecar boot: if injection was previously enabled, automatically reconnect & restore theme quickly
+  if (cfg.injection && cfg.injection.enabled === true) {
+    (async () => {
+      const userCSS = await getEffectiveCSS();
+      for (let attempt = 0; attempt < 12; attempt++) {
+        try {
+          const cdpOk = await cdp.connect();
+          if (cdpOk) {
+            await cdp.evaluate(hostDomInject, userCSS, cfg, PORT);
+            console.log("[CDP] Automatically restored theme injection on startup");
+            return;
+          }
+        } catch (e) {
+          if (attempt === 11) console.warn("[CDP] Startup auto-inject:", e.message);
+        }
+        await new Promise(r => setTimeout(r, 350));
       }
-    } catch (e) {
-      console.warn("[CDP] Startup auto-inject:", e.message);
-    }
-  }, 1000);
+    })();
+  }
 });
 
 // 优雅停机与卸载清理：在插件被禁用、卸载或进程终止时，完整恢复宿主原生界面
