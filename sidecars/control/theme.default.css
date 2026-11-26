@@ -515,9 +515,9 @@ iframe {
    透明度、模糊度、液态高光与内发光完全直连控制中心变量，无下限死区，随滑块 0~100% 实时响应。
    ======================================================== */
 
-/* 10.1 设置弹窗主体面板 */
-:root:not([data-ag-material="liquid"]) :is(.settings-modal-container, [role="dialog"].settings-modal-container),
-[data-ag-material="frosted"] :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+/* 10.1 设置弹窗与通用确认弹窗（.settings-modal-container / .agy-dialog / [role="alertdialog"] / [role="dialog"]）主体面板 */
+:root:not([data-ag-material="liquid"]) :is(.settings-modal-container, [role="dialog"], .agy-dialog, [role="alertdialog"]),
+[data-ag-material="frosted"] :is(.settings-modal-container, [role="dialog"], .agy-dialog, [role="alertdialog"]) {
   background: rgba(255, 255, 255, calc(var(--ag-glass-opacity, 0.65) * 0.55 + 0.40)) !important;
   backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
   -webkit-backdrop-filter: blur(var(--ag-glass-blur, 24px)) saturate(185%) !important;
@@ -525,19 +525,19 @@ iframe {
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* 确保设置卡片内部子容器透明，不遮挡卡片本身的毛玻璃底板与圆角 */
-.settings-modal-container .bg-background {
+/* 确保设置卡片及确认弹窗内部子容器透明，不遮挡卡片本身的毛玻璃底板与圆角 */
+:is(.settings-modal-container, .agy-dialog, [role="alertdialog"], [role="dialog"]) :is(.bg-background, .surface-opaque, .bg-card, .bg-popover) {
   background: transparent !important;
 }
 
-:root:not([data-ag-material="liquid"]) :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container),
-[data-ag-material="frosted"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+:root:not([data-ag-material="liquid"]) :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"], .agy-dialog, [role="alertdialog"]),
+[data-ag-material="frosted"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"], .agy-dialog, [role="alertdialog"]) {
   background: rgba(24, 28, 38, calc(var(--ag-glass-opacity, 0.65) * 0.45 + 0.50)) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55) !important;
 }
 
-[data-ag-material="liquid"] :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+[data-ag-material="liquid"] :is(.settings-modal-container, [role="dialog"], .agy-dialog, [role="alertdialog"]) {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.35) * 0.55 + 0.45)) 0%,
@@ -554,7 +554,7 @@ iframe {
     inset 0 0 calc(var(--ag-liquid-inner-glow, 0.25) * 36px) rgba(255, 255, 255, var(--ag-liquid-inner-glow, 0.25)) !important;
 }
 
-[data-ag-material="liquid"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"].settings-modal-container) {
+[data-ag-material="liquid"] :is(body.theme-dark, body:not(.theme-light)) :is(.settings-modal-container, [role="dialog"], .agy-dialog, [role="alertdialog"]) {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, calc(var(--ag-liquid-opacity, 0.25) * 0.25 + 0.08)) 0%,
@@ -590,8 +590,6 @@ iframe {
 /* 亚克力毛玻璃 (Frosted) - 浅色模式 */
 :root:not([data-ag-material="liquid"]) :is(
   .agy-fastpick,
-  [role="alertdialog"],
-  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
   [data-radix-select-content],
   [data-radix-popover-content],
   [data-testid="title-menu-bar"] .surface-opaque,
@@ -604,8 +602,6 @@ iframe {
 ),
 [data-ag-material="frosted"] :is(
   .agy-fastpick,
-  [role="alertdialog"],
-  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
   [data-radix-select-content],
   [data-radix-popover-content],
   [data-testid="title-menu-bar"] .surface-opaque,
@@ -626,8 +622,6 @@ iframe {
 /* 亚克力毛玻璃 (Frosted) - 深色模式 */
 :root:not([data-ag-material="liquid"]) :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is(
   .agy-fastpick,
-  [role="alertdialog"],
-  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
   [data-radix-select-content],
   [data-radix-popover-content],
   [data-testid="title-menu-bar"] .surface-opaque,
@@ -640,8 +634,6 @@ iframe {
 ),
 [data-ag-material="frosted"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is(
   .agy-fastpick,
-  [role="alertdialog"],
-  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
   [data-radix-select-content],
   [data-radix-popover-content],
   [data-testid="title-menu-bar"] .surface-opaque,
@@ -662,8 +654,6 @@ iframe {
 /* 苹果液态玻璃 (Liquid) - 浅色模式 */
 [data-ag-material="liquid"] :is(
   .agy-fastpick,
-  [role="alertdialog"],
-  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
   [data-radix-select-content],
   [data-radix-popover-content],
   [data-testid="title-menu-bar"] .surface-opaque,
@@ -695,8 +685,6 @@ iframe {
 /* 苹果液态玻璃 (Liquid) - 深色模式 */
 [data-ag-material="liquid"] :is(body.theme-dark, html.dark body, body:not(.theme-light)) :is(
   .agy-fastpick,
-  [role="alertdialog"],
-  div[data-state="open"] > [role="dialog"]:not(.settings-modal-container),
   [data-radix-select-content],
   [data-radix-popover-content],
   [data-testid="title-menu-bar"] .surface-opaque,

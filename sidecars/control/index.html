@@ -799,6 +799,17 @@
       </div>
     </div>
 
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid rgba(128,128,128,0.16);">
+      <div>
+        <div style="font-size:13px; font-weight:500;">内置浏览器原生圆角（无文件侵入，实验性）</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">通过 NODE_OPTIONS 主进程 Hook 调用 Electron WebContentsView.setBorderRadius()，真正裁切内置浏览器底部直角并完整透出壁纸（不修改 app.asar，需重启生效）。</div>
+      </div>
+      <label class="switch-label" style="flex-shrink:0;">
+        <input type="checkbox" id="switch-launch-browser-radius">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+
     <div id="launch-perf-banner" style="display:none; margin-top:10px; padding:8px 10px; border-radius:10px; font-size:12px; line-height:1.45;"></div>
   </div>
 
@@ -1943,6 +1954,7 @@
     const switchLaunchPerf = document.getElementById("switch-launch-perf");
     const switchLaunchVulkan = document.getElementById("switch-launch-vulkan");
     const switchLaunchGraphite = document.getElementById("switch-launch-graphite");
+    const switchLaunchBrowserRadius = document.getElementById("switch-launch-browser-radius");
     const launchPerfGraphiteRow = document.getElementById("launch-perf-graphite-row");
     const launchPerfSub = document.getElementById("launch-perf-sub");
     const launchPerfDesc = document.getElementById("launch-perf-desc");
@@ -1968,6 +1980,7 @@
       switchLaunchPerf.checked = !!lp.enabled;
       if (switchLaunchVulkan) switchLaunchVulkan.checked = !!(lp.enabled && lp.vulkan);
       if (switchLaunchGraphite) switchLaunchGraphite.checked = !!(lp.enabled && lp.graphite);
+      if (switchLaunchBrowserRadius) switchLaunchBrowserRadius.checked = !!lp.browserRadiusHook;
       if (launchPerfGraphiteRow) launchPerfGraphiteRow.style.display = isWin ? "flex" : "none";
       if (launchPerfSub) launchPerfSub.style.display = lp.enabled ? "block" : "none";
 
@@ -1995,6 +2008,7 @@
         if (data.active.maxOldSpaceMB) parts.push(`${data.active.maxOldSpaceMB}MB 堆`);
         if (data.active.vulkan) parts.push(isWin ? "D3D11 加速" : "Vulkan");
         if (data.active.graphite) parts.push("SkiaGraphite");
+        if (data.active.browserRadiusHook) parts.push("浏览器原生圆角 Hook");
         launchPerfBanner.textContent = `✓ 当前运行进程已生效${parts.length ? "（" + parts.join(" · ") + "）" : ""}`;
       } else {
         launchPerfBanner.style.display = "none";
@@ -2051,6 +2065,11 @@
     if (switchLaunchGraphite) {
       switchLaunchGraphite.onchange = () => {
         updateLaunchPerf({ enabled: true, graphite: !!switchLaunchGraphite.checked });
+      };
+    }
+    if (switchLaunchBrowserRadius) {
+      switchLaunchBrowserRadius.onchange = () => {
+        updateLaunchPerf({ browserRadiusHook: !!switchLaunchBrowserRadius.checked });
       };
     }
 

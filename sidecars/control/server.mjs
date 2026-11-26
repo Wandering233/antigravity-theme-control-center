@@ -263,7 +263,11 @@ class CdpEngine {
             const res = await fetch(`http://127.0.0.1:${p}/json`, { signal: AbortSignal.timeout(1200) });
             if (res.ok) {
               const targets = await res.json();
-              mainTarget = targets.find(t => t.type === "page" && !t.url.includes("devtools://") && !t.url.includes("data:"));
+              const pageTargets = targets.filter(t => t.type === "page" && t.webSocketDebuggerUrl && !t.url.includes("devtools://") && !t.url.includes("data:"));
+              mainTarget =
+                pageTargets.find(t => /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//i.test(t.url || "") || (t.url || "").startsWith("file://") || (t.url || "").startsWith("vscode-file://")) ||
+                pageTargets.find(t => /\bAntigravity\b/.test(t.title || "")) ||
+                pageTargets[0];
               if (mainTarget && mainTarget.webSocketDebuggerUrl) {
                 activePort = p;
                 break;
@@ -1744,6 +1748,16 @@ let debouncedSaveTimer = null;
 // ========================================================
 const WRAPPER_PATH = join(os.homedir(), ".local/bin/antigravity");
 const WRAPPER_BACKUP_PATH = join(CONFIG_DIR, "antigravity.wrapper.bak");
+const HOOK_SCRIPT_SRC = join(__dirname, "wcv-radius-hook.cjs");
+const HOOK_SCRIPT_DEST = join(CONFIG_DIR, "wcv-radius-hook.cjs");
+
+async function ensureHookScriptCopied() {
+  if (!existsSync(CONFIG_DIR)) await mkdir(CONFIG_DIR, { recursive: true });
+  if (existsSync(HOOK_SCRIPT_SRC)) {
+    const content = await readFile(HOOK_SCRIPT_SRC, "utf8");
+    await writeFile(HOOK_SCRIPT_DEST, content, "utf8");
+  }
+}
 
 function computeRecommendedLaunchPerf() {
   const cpuThreads = Math.max(1, (os.cpus() || []).length);
@@ -1782,7 +1796,7 @@ function runPowerShellJson(psScript) {
 }
 
 async function detectRunningHostFlags() {
-  const active = { detected: false, rasterThreads: null, maxOldSpaceMB: null, vulkan: false, graphite: false, raw: "" };
+  const active = { detected: false, rasterThreads: null, maxOldSpaceMB: null, vulkan: false, graphite: false, browserRadiusHook: false, raw: "" };
   if (process.platform === "win32") {
     try {
       const data = await runPowerShellJson(`
@@ -1822,6 +1836,10 @@ $proc = Get-CimInstance Win32_Process -Filter "Name = 'Antigravity.exe'" | Where
           const mHeap = raw.match(/--max-old-space-size=(\d+)/);
           if (mHeap) active.maxOldSpaceMB = Number(mHeap[1]);
           active.vulkan = /--enable-features=[^\s]*Vulkan/.test(raw);
+          try {
+            const envRaw = await readFile(`/proc/${name}/environ`, "utf8");
+            active.browserRadiusHook = envRaw.includes("wcv-radius-hook.cjs");
+          } catch {}
           break;
         }
       } catch {}
@@ -1886,12 +1904,13 @@ foreach ($root in $roots) {
 
 async function inspectLaunchPerfStatus(cfg) {
   const rec = computeRecommendedLaunchPerf();
-  const lp = Object.assign({ enabled: false, vulkan: false, graphite: false }, cfg?.launchPerf || {});
+  const lp = Object.assign({ enabled: false, vulkan: false, graphite: false, browserRadiusHook: false }, cfg?.launchPerf || {});
   const isWin = process.platform === "win32";
   const supported = process.platform === "linux" || isWin;
   let wrapperText = "";
   let hasWrapper = false;
   let wrapperPath = process.platform === "linux" ? WRAPPER_PATH : null;
+  let winNodeOptions = "";
 
   if (process.platform === "linux" && existsSync(WRAPPER_PATH)) {
     hasWrapper = true;
@@ -1906,6 +1925,8 @@ async function inspectLaunchPerfStatus(cfg) {
       } else {
         wrapperPath = "Windows 快捷方式";
       }
+      const envRes = await runPowerShellJson(`[PSCustomObject]@{ val = [Environment]::GetEnvironmentVariable('NODE_OPTIONS', 'User') } | ConvertTo-Json -Compress`);
+      winNodeOptions = String(envRes?.val || "");
     } catch {
       wrapperPath = "Windows 快捷方式";
     }
@@ -1913,11 +1934,13 @@ async function inspectLaunchPerfStatus(cfg) {
   const wrapperHasPerf = /--num-raster-threads=/.test(wrapperText) || /--max-old-space-size=/.test(wrapperText);
   const wrapperHasVulkan = /--enable-features=[^\n]*Vulkan/.test(wrapperText) || /--use-angle=d3d11/.test(wrapperText);
   const wrapperHasGraphite = /--enable-skia-graphite/.test(wrapperText) || /--enable-features=[^\n]*SkiaGraphite/.test(wrapperText);
+  const wrapperHasBrowserRadius = /wcv-radius-hook\.cjs/.test(isWin ? winNodeOptions : wrapperText);
   // 若配置从未显式设置过，但本机包装器已存在性能参数，自动同步显示状态
-  if (cfg && cfg.launchPerf === undefined && wrapperHasPerf) {
-    lp.enabled = true;
+  if (cfg && cfg.launchPerf === undefined && (wrapperHasPerf || wrapperHasBrowserRadius)) {
+    lp.enabled = wrapperHasPerf;
     lp.vulkan = wrapperHasVulkan;
     lp.graphite = wrapperHasGraphite;
+    lp.browserRadiusHook = wrapperHasBrowserRadius;
   }
 
   const active = await detectRunningHostFlags();
@@ -1925,7 +1948,9 @@ async function inspectLaunchPerfStatus(cfg) {
   const needsRestart = supported && active.detected && (
     (lp.enabled !== activeHasPerf) ||
     (lp.enabled && lp.vulkan !== active.vulkan) ||
-    (lp.enabled && isWin && lp.graphite !== active.graphite)
+    (lp.enabled && isWin && lp.graphite !== active.graphite) ||
+    (!isWin && lp.browserRadiusHook !== active.browserRadiusHook) ||
+    (isWin && lp.browserRadiusHook !== wrapperHasBrowserRadius)
   );
 
   const previewArgs = buildLaunchCliArgs(lp, rec)
@@ -1940,6 +1965,7 @@ async function inspectLaunchPerfStatus(cfg) {
     wrapperHasPerf,
     wrapperHasVulkan,
     wrapperHasGraphite,
+    wrapperHasBrowserRadius,
     config: lp,
     recommended: rec,
     active,
@@ -2085,9 +2111,40 @@ foreach ($root in $roots) {
   };
 }
 
+async function applyWindowsNodeHook(enabled) {
+  const dest = HOOK_SCRIPT_DEST;
+  if (enabled) {
+    await ensureHookScriptCopied();
+  }
+  const escapedDest = dest.replace(/'/g, "''");
+  const flagStr = /\s/.test(dest) ? `--require "${dest}"` : `--require ${dest}`;
+  const escapedFlag = flagStr.replace(/'/g, "''");
+  await runPowerShellJson(`
+$ErrorActionPreference = 'SilentlyContinue'
+$cur = [Environment]::GetEnvironmentVariable('NODE_OPTIONS', 'User')
+if (-not $cur) { $cur = '' }
+$cleaned = ($cur -replace '--require\\s+(?:"[^"]*wcv-radius-hook\\.cjs"|\\S*wcv-radius-hook\\.cjs)', '').Trim()
+$cleaned = ($cleaned -replace '\\s+', ' ').Trim()
+$enable = ${enabled ? "$true" : "$false"}
+if ($enable) {
+  $next = if ($cleaned) { "$cleaned ${escapedFlag}" } else { "${escapedFlag}" }
+} else {
+  $next = $cleaned
+}
+if ($next) {
+  [Environment]::SetEnvironmentVariable('NODE_OPTIONS', $next, 'User')
+} else {
+  [Environment]::SetEnvironmentVariable('NODE_OPTIONS', $null, 'User')
+}
+[PSCustomObject]@{ ok = $true; nodeOptions = $next } | ConvertTo-Json -Compress
+`);
+}
+
 async function applyLaunchWrapper(launchPerf) {
   if (process.platform === "win32") {
-    return applyWindowsLaunchPerf(launchPerf, CDP_PORT);
+    const winRes = await applyWindowsLaunchPerf(launchPerf, CDP_PORT);
+    await applyWindowsNodeHook(!!(launchPerf && launchPerf.browserRadiusHook));
+    return winRes;
   }
   if (process.platform !== "linux") {
     return { updated: false, reason: "当前仅 Linux / Windows 自动写入启动参数，其他平台请手动附加下方启动参数" };
@@ -2111,6 +2168,10 @@ async function applyLaunchWrapper(launchPerf) {
   }
 
   const args = buildLaunchCliArgs(launchPerf, rec);
+  const useNodeHook = !!(launchPerf && launchPerf.browserRadiusHook);
+  if (useNodeHook) {
+    await ensureHookScriptCopied();
+  }
   const script = [
     "#!/usr/bin/env bash",
     "# Managed by Antigravity Theme Control Center",
@@ -2118,6 +2179,7 @@ async function applyLaunchWrapper(launchPerf) {
     "if ss -ltn 2>/dev/null | grep -qE '(:|\\])39888\\b'; then",
     "  CDP_PORT=0",
     "fi",
+    ...(useNodeHook ? [`export NODE_OPTIONS="\${NODE_OPTIONS:+\${NODE_OPTIONS} }--require ${HOOK_SCRIPT_DEST}"`] : []),
     `exec ${realBin} \\`,
     ...args.map(a => `  ${a} \\`),
     '  "$@"',
@@ -2672,11 +2734,12 @@ const server = createServer(async (req, res) => {
       for await (const chunk of req) body += chunk;
       const patch = JSON.parse(body || "{}");
       const cfg = await getOrCreateConfig();
-      const prev = Object.assign({ enabled: false, vulkan: false, graphite: false }, cfg.launchPerf || {});
+      const prev = Object.assign({ enabled: false, vulkan: false, graphite: false, browserRadiusHook: false }, cfg.launchPerf || {});
       const next = {
         enabled: patch.enabled !== undefined ? !!patch.enabled : prev.enabled,
         vulkan: patch.vulkan !== undefined ? !!patch.vulkan : prev.vulkan,
-        graphite: patch.graphite !== undefined ? !!patch.graphite : prev.graphite
+        graphite: patch.graphite !== undefined ? !!patch.graphite : prev.graphite,
+        browserRadiusHook: patch.browserRadiusHook !== undefined ? !!patch.browserRadiusHook : prev.browserRadiusHook
       };
       if (!next.enabled) {
         next.vulkan = false;
